@@ -53,6 +53,19 @@ describe("mask", () => {
     expect(mask("password: hunter22")).toBe("password: ***");
   });
 
+  test("masks a private key, also when the output cut off its first or last line", () => {
+    const body = "MIIEowIBAAKCAQEAu1SU1LfVLPHCozMxH2Mo4lgOEePzNm0tRgeLezV6ffAt0gunVTLw";
+    expect(mask(`-----BEGIN RSA PRIVATE KEY-----\n${body}\n-----END RSA PRIVATE KEY-----`)).not.toContain(body);
+    expect(mask(`-----BEGIN RSA PRIVATE KEY-----\n${body}`)).not.toContain(body);
+    expect(mask(`${body}\n${body}\n-----END RSA PRIVATE KEY-----`)).not.toContain(body);
+  });
+
+  test("masks a password with a slash or an @ in a URL, and a quoted value with spaces", () => {
+    expect(mask("postgres://app:pa/ss@db/x")).toBe("postgres://app:***@db/x");
+    expect(mask("redis://user:p@ss@cache:6379")).toBe("redis://user:***@cache:6379");
+    expect(mask('PASSWORD="correct horse battery" next')).toBe('PASSWORD="***" next');
+  });
+
   test("leaves ordinary output alone", () => {
     const output = "Error: P1001: Can't reach database server at localhost:5432";
     expect(mask(output)).toBe(output);

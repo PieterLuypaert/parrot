@@ -42,22 +42,42 @@ export function tail(text, n = OUTPUT_LINES) {
   return lines.slice(-n).join("\n");
 }
 
+const quoted = (value) => (value.startsWith('"') ? '"***"' : value.startsWith("'") ? "'***'" : "***");
+
 const SECRETS = [
-  [/(-----BEGIN [A-Z ]*PRIVATE KEY-----)[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----)/g, "$1 *** $2"],
+  // A private key, also when only its start or its end is in the output.
+  [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g, "-----BEGIN PRIVATE KEY----- *** -----END PRIVATE KEY-----"],
+  // Long lines of nothing but base64, such as the body of a key whose BEGIN line was cut off.
+  [/^[A-Za-z0-9+/]{60,}={0,2}$/gm, "***"],
   [/\b(sk-[A-Za-z0-9_-]{6})[A-Za-z0-9_-]{10,}/g, "$1***"],
   [/\b(gh[pousr]_)[A-Za-z0-9]{20,}/g, "$1***"],
   [/\b(github_pat_)[A-Za-z0-9_]{20,}/g, "$1***"],
   [/\b(xox[abprs]-)[A-Za-z0-9-]{10,}/g, "$1***"],
   [/\bAKIA[0-9A-Z]{16}\b/g, "AKIA***"],
   [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, "eyJ***"],
-  [/(\/\/[^:/\s@]+:)[^@\s/]+@/g, "$1***@"],
-  [/\b([A-Za-z0-9_]*(?:api[_-]?key|secret|token|passwd|password|pwd)[A-Za-z0-9_]*)(\s*[:=]\s*)(["']?)[^\s"']+\3/gi, "$1$2$3***$3"],
+  // A password in a URL runs up to the last @ before the host, so a / or @ in it is masked too.
+  [/(\/\/[^:/\s@]+:)\S+@(?=[^\s@]+)/g, "$1***@"],
+  [/\b([A-Za-z0-9_]*(?:api[_-]?key|secret|token|passwd|password|pwd)[A-Za-z0-9_]*)(\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s"']+)/gi,
+    (_m, key, sep, value) => key + sep + quoted(value)],
 ];
 
 // Terminal output with the secrets that often show up in it masked: keys, tokens, passwords in
-// URLs and in KEY=value lines. It catches the common shapes, not all of them.
+// URLs and in KEY=value lines. It catches the common shapes, not all of them. Mask before cutting
+// the output, so a secret is never cut in half and half left in.
 export function mask(text) {
   return SECRETS.reduce((out, [pattern, replace]) => out.replace(pattern, replace), String(text ?? ""));
+}
+
+// A message's own id, so the chat never shows one message's text for another.
+export function messageId(now = Date.now(), random = Math.random) {
+  return `${now.toString(36)}-${Math.floor(random() * 1e8).toString(36)}`;
+}
+
+// The chats' busy projects without one.
+export function without(map, key) {
+  const rest = { ...(map ?? {}) };
+  delete rest[key];
+  return rest;
 }
 
 function firstLine(text) {
@@ -96,14 +116,18 @@ export function withMessage(chats, cwd, message, now = Date.now()) {
   return keepRecent({ ...chats, [cwd]: { ...chat, messages, at: now } });
 }
 
-// The Claude conversation to continue; null starts a new one, after an error or a fresh start.
+// The Claude conversation to continue; null starts a new one, after an error or a fresh start, so
+// a conversation Claude can no longer continue never blocks the next question.
 export function withSession(chats, cwd, session) {
   const chat = chats?.[cwd] ?? { session: null, messages: [] };
   return { ...chats, [cwd]: { ...chat, session: session ?? null } };
 }
 
 export function withoutChat(chats, cwd) {
-  const rest = { ...chats };
-  delete rest[cwd];
-  return rest;
+  return without(chats, cwd);
+}
+
+// Where claude may live when the app was opened from the Dock, with the short PATH macOS gives it.
+export function claudeCandidates(home) {
+  return ["claude", `${home}/.local/bin/claude`, "/opt/homebrew/bin/claude", "/usr/local/bin/claude", `${home}/.claude/local/claude`];
 }
