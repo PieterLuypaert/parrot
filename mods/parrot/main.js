@@ -68,10 +68,10 @@ const GREEN = "#38a35f";
 const BLUE = "#2d6fe0";
 const WHITE = "#ffffff";
 const PIXEL_SHADOW = "#00000055";
-// The parrot's chat bubble: its red, soft, for a dark and a light theme, with a thin red edge.
+// The bubbles: the parrot's red, soft, for a dark and a light theme, and a darker blue edge for yours.
 const PARROT_BUBBLE_DARK = "#3a1c22";
 const PARROT_BUBBLE_LIGHT = "#fdecee";
-const PARROT_EDGE = "#e0303f55";
+const BLUE_DARK = "#1c438f";
 
 const chats = () => shared(CHATS) ?? {};
 const busy = () => shared(BUSY) ?? {};
@@ -854,25 +854,25 @@ export default class Parrot extends View {
           .cursor_pointer().hover((s) => s.opacity(0.9)).on_click((_e, cx) => this.send(cx)).child("ASK")));
   }
 
-  // Messages as chat bubbles in the parrot's colours: yours in its wing blue on the right, its own
-  // soft red on the left, beside its head.
+  // Messages as chat bubbles in the parrot's colours, square with a 2px border like the chat's own
+  // frame: yours in its wing blue on the right, its own soft red on the left, beside its head.
   message(t, message, i) {
     const id = `parrot-message-${message.id ?? i}`;
     if (message.role === "you") {
       return h_flex().w_full().justify_end()
-        .child(div().max_w(320).px(12).py(7).rounded(16).bg(BLUE).text_color(WHITE).text_size(13)
+        .child(div().max_w(320).px(12).py(7).bg(BLUE).border_2().border_color(BLUE_DARK).text_color(WHITE).text_size(13)
           .child(TextView.markdown(id, message.text).selectable(true)));
     }
     if (message.role === "error") {
       return h_flex().w_full().gap(8).items_start().text_size(12.5).text_color(RED)
-        .child(div().px(6).rounded(4).font_bold().bg(RED).text_color(WHITE).child("!"))
+        .child(div().px(6).font_bold().bg(RED).text_color(WHITE).child("!"))
         .child(div().flex_1().min_w(0).child(message.text));
     }
     const dark = settings()?.dark !== false;
     return h_flex().w_full().gap(6).items_start()
       .child(image(FRAMES + "icon.png").w(16).h(16).flex_none().mt(4))
-      .child(v_flex().flex_1().min_w(0).gap(8).px(12).py(9).rounded(16)
-        .bg(dark ? PARROT_BUBBLE_DARK : PARROT_BUBBLE_LIGHT).border_1().border_color(PARROT_EDGE)
+      .child(v_flex().flex_1().min_w(0).gap(8).px(12).py(9)
+        .bg(dark ? PARROT_BUBBLE_DARK : PARROT_BUBBLE_LIGHT).border_2().border_color(RED_DARK)
         .children(segments(message.text).map((piece, n) => (piece.type === "code"
           ? this.codeBlock(t, piece, `${id}-${n}`)
           : div().w_full().text_size(13).child(TextView.markdown(`${id}-${n}`, piece.text).selectable(true))))));
@@ -890,7 +890,7 @@ export default class Parrot extends View {
       .on_click((_e, cx) => { action(cx); cx.notify(); })
       .child(label);
     return v_flex().w_full().gap(4)
-      .child(v_flex().w_full().px(10).py(8).rounded(8).bg(t.background).font_family(mono).text_size(12)
+      .child(v_flex().w_full().px(10).py(8).bg(t.background).font_family(mono).text_size(12)
         .children(piece.lines.map((line) => div().w_full().text_color(line.command && isRisky(line.command) ? RED : t.foreground).child(line.text || " "))))
       .when(commands.length === 0, (el) => el.child(link("copy", "⧉ Copy", t.muted, "Copy this block", (cx) => cx.write_to_clipboard(code))))
       .children(commands.map((command, n) => {
