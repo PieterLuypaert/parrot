@@ -830,11 +830,12 @@ export default class Parrot extends View {
   }
 
   // Scrolls to what came in last. An answer replaces the thinking line, so the list keeps its
-  // length and only the last item tells it apart. A long answer lands with its end in view; its
-  // question then comes to the top, so the answer reads from its start.
+  // length and only the last item tells it apart; an alert grows when Claude's guesses land. A
+  // long answer lands with its end in view; its question then comes to the top, so the answer
+  // reads from its start.
   followLatest(messages, thinking, alert, cx) {
     const last = messages.at(-1);
-    const latest = `${last?.id ?? ""}|${thinking}|${alert?.id ?? ""}`;
+    const latest = `${last?.id ?? ""}|${thinking}|${alert ? `${alert.id}:${Boolean(alert.answered)}` : ""}`;
     if (latest === this.seen) return;
     this.seen = latest;
     const count = messages.length + (thinking ? 1 : 0) + (alert ? 1 : 0);
