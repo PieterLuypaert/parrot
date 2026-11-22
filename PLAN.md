@@ -1,6 +1,6 @@
 # Parrot: plan
 
-Planversie 2, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
+Planversie 3, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
 
 Een pixel-art-papegaai in de Herdr-app die meekijkt terwijl je werkt. Ziet hij een fout, in je terminal of daarbuiten (de logs van je stack, de CI van je PR, je lokale app in de browser), dan schrikt hij op. Klik je op hem, dan zoekt je eigen Claude uit wat er misging en toont in een spraakwolkje de uitleg, met een fix als commando die je met één klik draait. Je kunt hem ook altijd zelf iets vragen.
 
@@ -63,11 +63,14 @@ Na een klik:
 
 ## Aan en uit
 
-Een knop **Parrot** in de tabbalk, naast je andere mod-knoppen zoals Chartroom, zet hem aan of uit. ⌥⌘P doet hetzelfde.
+Een knop **Parrot** in de tabbalk, naast je andere mod-knoppen zoals Chartroom, zet hem aan of uit. ⌥⌘P doet hetzelfde (`parrot.toggle`).
 
-- **Aan:** het venster met de papegaai opent en de wachter start. Met `keep: true` komt het venster terug na een herstart, tot je hem uitzet.
+- **Alleen met een terminal in de tab:** parrot kijkt naar shells, niet naar agents.
+  - In een tab met alleen een agent-sessie kun je hem niet aanzetten: de knop staat gedimd, en een klik of ⌥⌘P geeft een melding.
+  - Heeft de tab een terminal-pane, dan kijkt hij daarnaar, ook terwijl je in de agent-sessie ernaast typt.
+- **Aan:** de papegaai staat rechtsboven in het venster, onder de tabbalk en de titelbalk van de panes. Sleep je hem ergens anders heen, dan houdt Herdr die plek bij. Vanaf v0.5 start ook de wachter.
 - **Uit:** het venster sluit, de wachter stopt, en de hook schrijft niets meer weg zolang `~/.parrot/off` bestaat. Geen meekijken, geen squawk en geen Claude.
-- **De knop** toont een kleine papegaaienkop: in kleur als hij aan staat, grijs als hij uit staat.
+- **De knop** toont een kleine papegaaienkop: in kleur als de papegaai er staat, grijs als hij uit staat of de tab geen terminal heeft.
 
 `install.sh` zet de knop in de tabbalk zoals bij chartroom (een block `parrot-button` met de mod en `props: { button: true }` in de rij van de tabbalk) en bindt ⌥⌘P en ⌥⇧⌘P als die toetsen vrij zijn.
 
@@ -118,12 +121,12 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 
 | Kan | Hoe |
 |---|---|
-| Vrij staan, zonder kaartje rond zich, en versleept worden | Een venster zonder kader: `openOverlay({ kind: "window", frame: "none", key: "parrot", keep: true })`. Het onthoudt waar je het neerzet en komt terug bij een herstart |
+| Vrij staan, zonder kaartje rond zich, en versleept worden | Een venster zonder kader: `openOverlay({ kind: "window", frame: "none", key: "parrot-corner", at })`. Herdr houdt de plek bij waar je het neerzet |
 | Of als kaartje aan de rand van het werkgebied | Floating block in de layout (`floating`, `edge`, `align`); Herdr tekent er wel altijd een kader met schaduw rond |
 | Een aan/uit-knop in de tabbalk, naast je andere mod-knoppen | Een block met de mod in de rij van de tabbalk, zoals `chartroom-button`; de knop opent of sluit het venster |
 | Half achter de rand zitten, zodat hij geen terminaltekst bedekt | `peek` op een floating block aan een zijkant: alleen zijn kop steekt uit tot je erover hovert |
 | Een pixel-art-papegaai in volle kleur tonen | `image()` met PNG-frames uit de mod-map |
-| Animeren | Frames wisselen met een timer (`cx.sleep`, `timer.after`) voor knipperen, schrikken en dansen. Native motion op `top`, `left` en `opacity` voor wiegen en wippen. `frames()` voor de "..." |
+| Animeren | Native: `loop("top")` voor wiegen, `loop("left")` voor schudden, `frames()` voor de z's en de "...". Een timer alleen voor één knipperframe om de paar seconden en voor korte reeksen (schrikken, dansen, praten) |
 | Weten welke pane focus heeft en wat er draait | `panes()`, `focused()`, `agents()`; `hc ls --json` geeft per terminal het programma op de voorgrond |
 | De tekst van een pane lezen | `hc read <t> --lines N`: scherm plus geschiedenis |
 | Een helper op de achtergrond laten draaien | `hc run --bg --name parrot-watch` start hem als terminal van herdr-core; `hc kill parrot-watch` stopt hem |
@@ -161,12 +164,12 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 - **Eén klik, ook voor wat iets weggooit.** Een fix loopt pas na jouw klik, en nooit meer dan één klik.
   - Commando's die iets weggooien of overschrijven (`rm -rf`, `git reset --hard`, `git push --force`, `kill`, `DROP`, `docker system prune`, ...) krijgen een rood label en lopen pas na 3 seconden.
   - In die tijd annuleert een klik of Esc. Een bevestigingsklik is niet nodig.
-- **Liever zelf Enter geven?** Een instelling zet zo'n commando in je prompt zonder Enter, zodat je het nog ziet en zelf start. `hc keys` kan dat toets per toets; de spike test of dat goed gaat met spaties, `&&` en pipes.
+- **Liever zelf Enter geven?** Een instelling zet zo'n commando in je prompt zonder Enter, zodat je het nog ziet en zelf start. zsh's `print -z` kan dat, ook met `&&` en pipes (getest in de spike); een onzichtbaar alternatief via het klembord testen we in PR 4.
 - **De browser-extensie** volgt alleen localhost en stuurt alleen naar `127.0.0.1`.
 - **Uit is uit:** geen hook-events, geen wachter en geen Claude.
 - **Model:** standaard een snel model voor de eerste uitleg; vervolgvragen op het model dat je kiest, zoals de Ask van chartroom.
 
-## Open vragen voor een spike
+## Vragen voor de spike
 
 1. **Waar hij zit.** Drie kandidaten, in volgorde van voorkeur:
    - een venster zonder kader (`frame: "none"`): staat vrij en is versleepbaar. Is de achtergrond echt doorzichtig rond de sprite, en blijft hij staan als je van tab wisselt?
@@ -180,6 +183,37 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 7. **`hc events`:** meldt het ook nieuwe output, of moet de wachter panes met draaiende programma's om de paar seconden lezen?
 8. **Vals alarm:** hoeveel geven de patronen op echte dev-server- en containerlogs uit je eigen stacks?
 9. **In je prompt zonder Enter:** typt `hc keys` een commando met spaties, `&&` en pipes correct in, toets per toets?
+
+## Uitkomst van de spike
+
+Getest op 22 november 2026 in de Herdr-app, op branch `spike/perch` (niet gemerged).
+
+1. **Waar hij zit:** in een venster zonder kader.
+   - De achtergrond is echt doorzichtig: de papegaai staat los op de terminal, zonder kaartje of schaduw. Floating block en pane-header zijn dus niet meer nodig.
+   - `mod.json` kan het venster zelf beschrijven (`"overlay": { "kind": "window", "frame": "none", "key": "parrot" }`), en `mod.open` opent en sluit het. In PR 1 bleek een eigen `parrot.toggle` via de knop beter; zie punt 5.
+   - `herdr-app do parrot.<commando>` bereikt het venster. Zo kunnen de hook en de wachter hem later laten schrikken.
+   - Een mod achter een symlink herlaadt niet bij opslaan. Het venster sluiten en opnieuw openen laadt de nieuwe versie; `install.sh` linkt opnieuw, zoals bij chartroom.
+2. **Animatie:** Herdr raadt timers voor animatie af, want elke redraw hertekent het hele venster.
+   - Rustig, meekijken en slapen zijn dus native: wiegen met `loop("top")` en de z's als tekst met `frames()`. Knipperen is één frame om de 4 à 7 seconden.
+   - Alleen korte reeksen (schrikken, dansen, praten) lopen met een timer. Alle stemmingen tonen correct.
+3. **De zsh-hook:** werkt.
+   - Hij geeft de juiste exitcode, ook met pipes en `&&`, en geldige JSON, ook met aanhalingstekens en backslashes.
+   - Hij staat als eerste in `precmd_functions`, zodat `$?` nog van het commando is. In PR 2 zet hij zich bij elk commando opnieuw vooraan, voor het geval een andere hook later voorkruipt.
+4. **Snelheid:** `claude -p` met een eigen systeemprompt, alleen Read, Grep en Glob, en zonder MCP-servers geeft een antwoord in zo'n 4,5 s op Haiku en 5 s op Sonnet.
+   - `--bare` valt af: dat gebruikt alleen een API-key, niet je abonnement.
+   - Je eigen `~/.claude/CLAUDE.md` wordt mee geladen: het antwoord begon met "Captain". In PR 3 zoeken we hoe parrot zijn eigen toon houdt.
+5. **De knop en het venster** (bijgesteld tijdens PR 1, na je test):
+   - `at: "pointer"` werkt niet voor vensters, en Herdr onthoudt per `key` de eerste plek van een venster.
+   - Een mod kent de grootte van het Herdr-venster niet. De knop meet die daarom één keer per sessie met een strookje van 2 punten hoog over de volle breedte (`width: 1`), en opent de papegaai dan rechtsboven.
+   - De knop is de kopie van parrot die er altijd is. Hij opent en sluit de papegaai zelf als de tab verandert, en neemt ⌥⌘P (`parrot.toggle`).
+   - Een papegaaivenster dat de knop niet zelf opende, zoals een bewaard venster van een oudere versie, sluit meteen.
+6. **De wachter als achtergrondterminal:** een terminal van `hc run --bg --no-parent --name ...` verschijnt niet in je Herdr-venster.
+7. **`hc events`** meldt alleen welk programma op de voorgrond draait (begin en einde van een commando), geen output. De wachter leest panes met een draaiend programma dus zelf, om de paar seconden.
+8. **Vals alarm:** pas te meten in PR 5, met echte logs.
+9. **In je prompt zonder Enter:**
+   - `hc keys` kan geen `&` of `|` typen; shift wordt genegeerd.
+   - zsh's `print -z` werkt wel: `hc send <t> " print -z -- '<cmd>'"` zet het commando klaar in de prompt, met `&&` en pipes, zonder het te starten. Het nadeel is één extra regel in de scrollback.
+   - In PR 4 testen we klembord plus `terminal.paste`, dat onzichtbaar is.
 
 ## Bouwvolgorde
 
