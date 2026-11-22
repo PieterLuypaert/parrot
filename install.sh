@@ -128,12 +128,14 @@ add_hook() {
   kept=""
   if [ -f "$rc" ]; then cp "$rc" "$rc.backup-$stamp" && kept=" ($rc was kept as $rc.backup-$stamp)"; fi
   if [ -f "$rc" ] && grep -Fq "$hook_mark" "$rc"; then
-    # Written beside it first, so a failing step leaves ~/.zshrc as it was.
-    if ! { grep -Fv "$hook_mark" "$rc.backup-$stamp" >"$rc.tmp" && printf '%s\n' "$line" >>"$rc.tmp"; }; then
+    # Written beside it first, so a failing step leaves ~/.zshrc as it was. grep ends with 1 when
+    # the parrot line was all there was, which is fine.
+    if ! { { grep -Fv "$hook_mark" "$rc.backup-$stamp" >"$rc.tmp" || [ $? -eq 1 ]; } && printf '%s\n' "$line" >>"$rc.tmp"; }; then
       rm -f "$rc.tmp"
       fail "could not update the hook line in $rc"
     fi
-    mv "$rc.tmp" "$rc"
+    # Written through, so a ~/.zshrc that links to your dotfiles stays a link.
+    cat "$rc.tmp" >"$rc" && rm -f "$rc.tmp"
     echo "hook: $rc loads this checkout's hook now$kept"
   else
     printf '\n%s\n' "$line" >>"$rc"
