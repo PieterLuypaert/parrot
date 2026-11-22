@@ -2,7 +2,7 @@
 
 A pixel parrot for the [Herdr app](https://herdr.dev) that stands on your work area and watches your shells. Later versions let it spot errors, in the terminal and beyond, and explain them with your own Claude, with the fix as one button. The plan, in Dutch, is in [PLAN.md](PLAN.md), and a sketch of where it is going is in [sketch/moods.html](sketch/moods.html).
 
-**0.1.0, the parrot on the map:** it stands without a frame on top of your terminals, sways while all is calm, tilts its head while a command runs in the focused shell and falls asleep after ten quiet minutes. Agent panes are left alone: they have a Claude of their own.
+**0.1.0, the parrot on the map:** it stands without a frame in the top right corner of the window and watches the terminal in your tab. It sways while all is calm, tilts its head while a command runs and falls asleep after ten quiet minutes. It watches shells, not agents: a tab with only an agent session cannot turn it on, and beside one it keeps watching the terminal while you type to the agent.
 
 ## Install
 
@@ -16,7 +16,8 @@ It links the mod, binds `⌥⌘P` and adds a **Parrot** button to your layout's 
 
 ## Use
 
-- **Parrot** in the tab bar, or `⌥⌘P`, turns the parrot on or off. Opened from the button, it lands just under it. Drag it anywhere: Herdr keeps its spot, also after a restart.
+- **Parrot** in the tab bar, or `⌥⌘P`, turns the parrot on or off. It needs a terminal pane in the tab; without one the button is dim and tells you so.
+- It lands in the top right corner, under the tab bar and the panes' title bars. Drag it anywhere and Herdr keeps that spot.
 - Asleep, a click wakes it.
 - `herdr-app do parrot.calm`, `parrot.watch` or `parrot.sleep` shows a mood for ten seconds.
 
