@@ -60,6 +60,11 @@ describe("layout.jq", () => {
     expect(ids(find(apply(layout), "tabs-row"))).toEqual(["bar", "parrot-button"]);
   });
 
+  test("fills a tabs row that has no children yet", () => {
+    const layout = { id: "root", type: "column", children: [{ id: "tabs-row", type: "row" }] };
+    expect(ids(find(apply(layout), "tabs-row"))).toEqual(["parrot-button"]);
+  });
+
   test("leaves a layout that has the button already as it is", () => {
     const layout = { id: "root", type: "column", children: [{ id: "tabs-row", type: "row", children: [tabs, { id: "parrot-button", type: "block" }] }] };
     expect(apply(layout)).toEqual(layout);

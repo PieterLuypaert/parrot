@@ -3,8 +3,8 @@
 # it yet, it goes into one, tabs-row, as Chartroom and Quarterdeck do, so they share it.
 def button: { id: "parrot-button", type: "block", size: { px: 92 }, window_drag: true, content: { mod: "parrot", props: { button: true } } };
 def after($id; $block):
-  if any(.children[]; .id? == $id) then .children |= [.[] | if .id? == $id then ., $block else . end]
-  else .children += [$block] end;
+  if any((.children // [])[]; .id? == $id) then .children |= [.[] | if .id? == $id then ., $block else . end]
+  else .children = (.children // []) + [$block] end;
 def tabs_row: { id: "tabs-row", type: "row", resizable: false, children: [(del(.size) + { size: { weight: 1 } }), button] } + (if .size then { size: .size } else {} end);
 
 # The tab bar: the block called tabs, else the first block drawn by one of Herdr's tab bar mods

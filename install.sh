@@ -26,35 +26,49 @@ command -v jq >/dev/null 2>&1 || fail "needs jq on the PATH (brew install jq)"
 
 version=$(jq -r .version "$here/package.json")
 
+dest="$app_home/mods/parrot"
+
+# A link to a parrot checkout's mod: its target is called mods/parrot and holds parrot's own
+# mood.js, so another project's mod that happens to be called parrot is never taken for it.
 is_parrot_link() {
-  case "$(readlink "$1")" in
-    */mods/parrot) return 0 ;;
+  target=$(readlink "$1")
+  case "$target" in
+    */mods/parrot) [ ! -e "$target" ] || [ -f "$target/mood.js" ] ;;
     *) return 1 ;;
   esac
 }
 
+# Checked before anything changes, so a failed install leaves no layout copy behind.
+can_link() {
+  if [ -L "$dest" ] && is_parrot_link "$dest"; then return 0; fi
+  if [ -e "$dest" ] || [ -L "$dest" ]; then fail "$dest is there already and is not a parrot checkout's mod: move it aside first"; fi
+}
+
 # The app does not see edits behind the link, so linking again is what makes it load the mod anew
-# (after a pull, say). A link to another parrot checkout points here instead; anything else at that
-# place is left alone.
+# (after a pull, say). A link to another parrot checkout points here instead.
 link_mod() {
-  src="$here/mods/parrot" dest="$app_home/mods/parrot"
-  if [ -L "$dest" ] && is_parrot_link "$dest"; then
+  src="$here/mods/parrot"
+  if [ -L "$dest" ]; then
     from=$(readlink "$dest")
     rm "$dest" && ln -s "$src" "$dest"
     if [ "$from" = "$src" ]; then echo "mod: linked again, so the app loads it anew"; else echo "mod: linked here instead of $from"; fi
     return
   fi
-  if [ -e "$dest" ] || [ -L "$dest" ]; then fail "$dest is there already and is not a parrot checkout's mod: move it aside first"; fi
   ln -s "$src" "$dest"
   echo "mod: linked $dest"
 }
 
 # Each key in keys.json: added when free, and moved to its new action when it still does one parrot
 # gave it before (mod.open:parrot or a parrot.* command). A key the person bound to something else
-# is left alone. keys.json is kept beside it once before the first change, unless this makes it.
+# is left alone. keys.json is kept beside it once before the first change. Without a keys.json the
+# app uses its own keys, and a new file holding only parrot's might take their place, so then
+# nothing is bound and the person is told how.
 add_keys() {
   keys="$app_home/keys.json" ours="$here/keys.json" kept=""
-  if [ ! -f "$keys" ]; then echo '{}' >"$keys" && kept=new; fi
+  if [ ! -f "$keys" ]; then
+    echo "key: there is no $keys yet, so none was bound: add $(jq -c .global "$ours") to its \"global\" section yourself" >&2
+    return
+  fi
   for key in $(jq -r '.global | keys[]' "$ours"); do
     action=$(jq -r --arg k "$key" '.global[$k]' "$ours")
     bound=$(jq -r --arg k "$key" '.global[$k] // empty' "$keys")
@@ -91,10 +105,10 @@ own_layout() {
     fail "$layout is one of Herdr's own layouts, which Herdr replaces on every start, so the button goes into a copy of it, $copy. Open the Herdr app and run this again: it makes the copy and shows it."
   fi
   if [ -f "$app_home/layouts/$copy.json" ]; then
-    "$herdr" "do" layout.switch "{\"name\":\"$copy\"}" >/dev/null || fail "could not show $copy"
+    "$herdr" "do" layout.switch "$(jq -nc --arg n "$copy" '{name: $n}')" >/dev/null || fail "could not show $copy"
     echo "layout: $layout is one of Herdr's own; showing $copy, the copy an earlier install made"
   else
-    "$herdr" "do" layout.clone "{\"name\":\"$layout\",\"as\":\"$copy\"}" >/dev/null || fail "could not copy $layout to $copy"
+    "$herdr" "do" layout.clone "$(jq -nc --arg n "$layout" --arg c "$copy" '{name: $n, as: $c}')" >/dev/null || fail "could not copy $layout to $copy"
     tries=0
     while [ ! -f "$app_home/layouts/$copy.json" ] && [ "$tries" -lt 50 ]; do sleep 0.1; tries=$((tries + 1)); done
     [ -f "$app_home/layouts/$copy.json" ] || fail "Herdr did not write $copy"
@@ -113,9 +127,10 @@ add_button() {
 }
 
 echo "parrot $version"
+can_link
 own_layout "${1:-$(shown_layout)}"
 link_mod
 add_keys
 add_button "$layout"
 "$herdr" check "$app_home/mods/parrot"
-echo "Parrot in the tab bar, or cmd-alt-p, turns the parrot on or off."
+echo "Parrot in the tab bar, or cmd-alt-p, turns the parrot on or off. It shows while a shell has the focus."
