@@ -35,8 +35,18 @@ describe("hook.zsh", () => {
     const { dir, file, event } = eventOf(home);
     expect(event.code).toBe(127);
     const names = readFileSync(join(dir, file.replace(".json", ".names")), "utf8").split("\n");
-    expect(names).toContain("git");
-    expect(names).toContain("parrot-put");
+    expect(names).toContain("c:git");
+    expect(names).toContain("f:parrot-put");
+    expect(names.some((name) => name.startsWith("f:_"))).toBe(false);
+  });
+
+  test("writes your names after any failure, and none after Ctrl-C", () => {
+    const failed = mkdtempSync(join(tmpdir(), "parrot-hook-"));
+    run(failed, ["false"]);
+    expect(existsSync(join(eventOf(failed).dir, eventOf(failed).file.replace(".json", ".names")))).toBe(true);
+    const stopped = mkdtempSync(join(tmpdir(), "parrot-hook-"));
+    run(stopped, ["(exit 130)"]);
+    expect(existsSync(join(eventOf(stopped).dir, eventOf(stopped).file.replace(".json", ".names")))).toBe(false);
   });
 
   test("writes nothing while parrot is off", () => {
