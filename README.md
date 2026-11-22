@@ -1,65 +1,72 @@
-# Parrot
+<p align="center">
+  <img src="mods/parrot/frames/calm.png" width="120" alt="Parrot, a red pixel parrot on its perch">
+</p>
 
-A pixel parrot for the [Herdr app](https://herdr.dev) that stands on your work area and watches your shells. Later versions let it spot errors, in the terminal and beyond, and explain them with your own Claude, with the fix as one button. The plan, in Dutch, is in [PLAN.md](PLAN.md), and a sketch of where it is going is in [sketch/moods.html](sketch/moods.html).
+<h1 align="center">Parrot</h1>
 
-**0.4.0, it reacts to your terminal and hands you its fixes:** it stands without a frame in the top right corner of the panes and watches the terminal in your tab. It sways while all is calm, tilts its head while a command runs, falls asleep after ten quiet minutes, startles when a command fails and dances when the next one works. After a typo it suggests the command you meant. Click it to ask your own Claude anything about the terminal's project, and click a command in its answer to put it on your prompt. It watches shells, not agents: a tab with only an agent session cannot turn it on, and beside one it keeps watching the terminal while you type to the agent.
+<p align="center">
+  A pixel parrot for the <a href="https://herdr.dev">Herdr app</a> that watches your shell,<br>
+  catches your typos and answers questions about your project, with your own Claude.
+</p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/chat-dark.png">
+  <img alt="A failed git push in the terminal, and Parrot's chat beside it: the question why it failed, and an answer with the fix, with a link under each command to put it on the prompt" src="docs/screenshots/chat-light.png">
+</picture>
+
+Click the parrot to ask about the project in your terminal, or click **Ask Parrot** when a command fails. Your Claude reads the files it needs and answers beside the parrot. A click on a green **↵** link puts that command on your prompt, ready for Enter.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/typo-dark.png">
+  <img alt="The terminal after the typo pnmp lnit, and the startled parrot with an alert: your Claude thinks you meant pnpm lint" src="docs/screenshots/typo-light.png">
+</picture>
+
+Mistype a command and the parrot startles. Your Claude guesses what you meant, written out in full and never as an alias. Click the guess to put it on your prompt.
+
+## Moods
+
+| <img src="mods/parrot/frames/calm.png" width="64" alt=""> | <img src="mods/parrot/frames/watch.png" width="64" alt=""> | <img src="mods/parrot/frames/think.png" width="64" alt=""> | <img src="mods/parrot/frames/alarm.png" width="64" alt=""> | <img src="mods/parrot/frames/dance-a.png" width="64" alt=""> | <img src="mods/parrot/frames/sleep.png" width="64" alt=""> |
+| :-: | :-: | :-: | :-: | :-: | :-: |
+| calm | watching | thinking | startled | dancing | asleep |
+
+It sways while all is calm and tilts its head while a command runs. It thinks while Claude works, startles when a command fails and dances when the next one works. After ten quiet minutes it falls asleep.
 
 ## Install
 
-Needs the Herdr app and `jq`. Clone this repo to a folder that stays, then run its installer with the Herdr app open:
+You need the Herdr app, zsh, `jq` and [Claude Code](https://claude.com/claude-code), logged in. Clone this repo to a folder that stays, then run this with the Herdr app open:
 
 ```sh
 ./install.sh
+source ~/.zshrc   # only in terminals that were already open
 ```
 
-It links the mod, binds `⌥⌘P` and `⌥⇧⌘P`, adds a **Parrot** button to your layout's tab bar, just after Chartroom's when that is there, and adds one line to your `~/.zshrc` that loads parrot's zsh hook. Terminals opened after that have it; in one that is open already, run `source ~/.zshrc`. Herdr replaces its own layouts on every start, so when one of those is shown, `install.sh` puts the button into a copy of it, such as `main-parrot`, and shows that. Every file it changes is kept beside it first. After pulling, run `./install.sh` again.
+The installer links the mod, adds a **Parrot** button to the tab bar, binds the keys and adds one line to `~/.zshrc` for the shell hook. It backs up every file it changes first. Run it again after a `git pull`.
 
 ## Use
 
-- **Parrot** in the tab bar, or `⌥⌘P`, turns the parrot on or off. It needs a terminal pane in the tab; without one the button is dim and tells you so.
-- It lands in the top right corner of the panes, under the tab bar and the panes' title bars, and moves left of a panel such as Quarterdeck's or Chartroom's while that is open.
-- A click on the parrot, or `⌥⇧⌘P`, opens the chat beside it. Asleep, the click wakes it too.
-- `herdr-app do parrot.calm`, `parrot.watch`, `parrot.sleep`, `parrot.think`, `parrot.alarm` or `parrot.dance` shows a mood for ten seconds.
+- **Parrot** in the tab bar, or `⌥⌘P`: turn it on or off. It needs a terminal in the tab and sits in the top right corner.
+- A click on the parrot, or `⌥⇧⌘P`: chat about the terminal's project. There is one conversation per git project.
+- **↵** under a command: put it on your prompt, not yet run. A red link marks a command that deletes, overwrites, force-pushes or publishes.
+- **Clear chat**, or `/clear`: start the project's conversation over.
 
-## When a command fails
+## What goes to Claude
 
-The zsh hook tells parrot how each command in your shells ended: the command, its exit code, the folder and how long it took, and after a failure your recent history, written under `~/.parrot/events`, a folder only you can read. It starts no process per command and writes nothing while parrot is off. Parrot reacts only to the tab you look at, and clears out the files of shells that are gone.
+Everything runs on your own Claude subscription through `claude -p`. Claude can only read (Read, Grep, Glob): it runs no commands, changes nothing and uses no MCP servers, hooks or plugins.
 
-- **A typo** (`gitce`, `pnmp lnit`), or **a command used wrong** (`git statsu`, an unknown option, a missing script): the parrot startles, asks your Claude at once what you meant, and shows its guesses, best first. Click one and it goes on your prompt, not yet run, with that pane focused: Enter runs it.
-  - The suggestions come only from your Claude, on your own subscription with a fast model (Haiku, a few seconds), with no tools and no session kept.
-  - Claude gets the line and the last 30 lines of output with secrets masked (a tool's own "Did you mean" is in there), the exit code, the project's scripts (package.json and Makefile) and the commands you use most. It always suggests the full command, never one of your aliases.
-  - When Claude cannot answer, the alert says why, and Ask Parrot is still there.
-- **Another failure**, such as a failing test run or build: the parrot startles and offers **Ask Parrot why**, which asks your Claude in the chat, with the terminal's output. Nothing goes to Claude before you click.
-- **The next command in that terminal works**: it dances, also after you took a suggestion.
-- **No errors**: Ctrl-C, a closed pipe and Ctrl-Z, and exit code 1 from a command that answers no (`grep` without a match, `test`, `diff`, `git diff --quiet`). A script that ends with 127 because a program it calls is missing is a failure, not a typo.
-- **A suggestion goes only to a prompt**: while vim, a REPL or a build still runs in that terminal, parrot says so instead of typing into it.
+- **A question** takes along the terminal's folder, its branch and its last 60 lines. Claude picks and reads the project's files itself.
+- **A typo** is the only thing sent without a click. Haiku gets the line, its output, the project's scripts and your recent commands, and suggests a fix.
 
-The alert opens beside the parrot, or in the chat while that is open. × dismisses it.
-
-## Chat
-
-Ask about the project of the terminal in your tab: how something works, where something lives, why a command failed. The chat opens beside the parrot in its colours, stays put, and moves along when the parrot does. It follows the tab, with one conversation per git project (a `cd` into a subfolder keeps it); follow-up questions continue it, and **Clear chat**, or typing `/clear`, starts that project over.
-
-Messages are square bubbles in the parrot's colours, with a 2px border like the chat's own frame: yours in its wing blue, its answers in a soft red. Code sits in a block in your terminal's font, and under each shell command is a green **↵ Put on prompt**: one click puts it on the terminal's prompt, not yet run, with that pane focused, so Enter runs it. A command that deletes, overwrites or pushes gets a red link. Other code gets **⧉ Copy**.
-
-Every question goes to your own Claude, on your own subscription, the way Chartroom asks it: `claude -p` in the terminal's folder, with no MCP servers and none of your hooks or plugins. Nothing goes to Claude until you ask. The parrot thinks while it waits; an answer that reads files takes half a minute or so on Sonnet.
-
-What Claude uses to answer:
-
-- your question, and the conversation so far in that project;
-- the terminal's folder, its branch and its last 60 lines, with keys, tokens and passwords masked first;
-- the project's files, which Claude picks and reads itself with Read, Grep and Glob: it runs no commands and changes nothing;
-- your own Claude context, as Claude Code loads it in that folder: your `~/.claude/CLAUDE.md`, the project's `CLAUDE.md` and your auto-memory for that folder.
+Keys, tokens and passwords are masked before anything is sent. Your `CLAUDE.md` files and auto-memory load as they do in Claude Code.
 
 ## Development
 
 ```sh
-bun test                         # the sprite, the moods, the zsh hook, the suggestions, the chat's questions and the layout change
-bun run frames                   # draw the frames again after changing scripts/sprite.js
-herdr-app check mods/parrot      # load the mod once
+bun test                      # sprite, moods, hook, suggestions, chat and layout
+bun run frames                # redraw the frames after changing scripts/sprite.js
+herdr-app check mods/parrot   # load the mod once
 ```
 
-The app does not see edits behind the installed link: run `./install.sh` again, or turn the parrot off and on.
+The app does not see edits behind the installed link, so run `./install.sh` again after one. Every change is listed in the [changelog](CHANGELOG.md).
 
 ## License
 

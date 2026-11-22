@@ -1,264 +1,264 @@
 # Parrot: plan
 
-Planversie 9, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
+Plan version 9, 22 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
 
-Een pixel-art-papegaai in de Herdr-app die meekijkt terwijl je werkt. Ziet hij een fout, in je terminal of daarbuiten (de logs van je stack, de CI van je PR, je lokale app in de browser), dan schrikt hij op. Klik je op hem, dan zoekt je eigen Claude uit wat er misging en toont in een spraakwolkje de uitleg, met een fix als commando die je met één klik draait. Je kunt hem ook altijd zelf iets vragen.
+A pixel-art parrot in the Herdr app that watches while you work. When it sees an error, in your terminal or beyond it (your stack's logs, your PR's CI, your local app in the browser), it startles. Click it and your own Claude works out what went wrong and explains it in a speech bubble, with a fix as a command you run with one click. You can also ask it anything yourself, at any time.
 
-Agent-panes (Claude Code, Codex, ...) slaat hij over, want daar zit al een Claude.
+It skips agent panes (Claude Code, Codex, ...), because a Claude is already at work there.
 
-Visuele schets: `sketch/moods.html`, gepubliceerd als artifact (in het Engels): https://claude.ai/artifact/1fH5s1mvty964pwgxpqzQ7
+Visual sketch: `sketch/moods.html`, published as an artifact: https://claude.ai/artifact/1fH5s1mvty964pwgxpqzQ7
 
-## Wat je ziet
+## What you see
 
-| Stemming | Wanneer | Wat hij doet |
+| Mood | When | What it does |
 |---|---|---|
-| Rustig | Niets aan de hand | Zit op zijn stok, wiegt zachtjes, knippert af en toe |
-| Slaapt | Een tijd niets gebeurd | Kop gezakt, ogen dicht, "z z" |
-| Kijkt mee | Er loopt een commando | Kopje scheef, kijkt naar de tekst |
-| Schrikt | Hij ziet een fout: een commando met een foutcode, een fout in de logs van je stack, een rode CI-check of een fout in je lokale app | Veren recht, ogen wijd, snavel open, rood uitroepteken, korte squawk |
-| Denkt na | Claude is bezig met je vraag | Kijkt omhoog, "..." in het wolkje |
-| Danst | Het commando na een fix slaagt | Vleugels op en neer, wipt heen en weer |
+| Calm | Nothing going on | Sits on its perch, sways gently, blinks now and then |
+| Asleep | Nothing has happened for a while | Head down, eyes closed, "z z" |
+| Watching | A command is running | Head tilted, looking at the text |
+| Startled | It sees an error: a command with an error code, an error in your stack's logs, a red CI check or an error in your local app | Feathers up, eyes wide, beak open, a red exclamation mark, a short squawk |
+| Thinking | Claude is working on your question | Looks up, "..." in the bubble |
+| Dancing | The command after a fix succeeds | Wings up and down, bobs back and forth |
 
-Hij blijft in zijn hoek tot jij klikt. Hij opent niets vanzelf en duwt niets voor je neus.
+It stays in its corner until you click. It opens nothing by itself and pushes nothing in front of you.
 
-- **Bij een fout** staat in het wolkje waar hij ze zag: `zsh · shop-api`, `docker · api-1`, `CI · test (web)` of `browser · localhost:3000`.
-- **Zonder actuele fout** toont een klik "Wat hij zag" (de laatste vijf meldingen) en de vraagbalk.
+- **On an error**, the bubble says where it saw it: `zsh · shop-api`, `docker · api-1`, `CI · test (web)` or `browser · localhost:3000`.
+- **Without a current error**, a click shows "What it saw" (the last five alerts) and the question bar.
 
-## Vragen stellen
+## Asking questions
 
-De vraagbalk staat altijd in het wolkje. Klik op de papegaai, of druk ⌥⇧⌘P (vrij in je `keys.json`).
+The question bar is always in the bubble. Click the parrot, or press ⌥⇧⌘P (free in your `keys.json`).
 
-- **Wat je kunt vragen:**
-  - over een fout: "waarom faalt dit?";
-  - over de code: "waar wordt die mail verstuurd?";
-  - over je stack: "draait alles van deze worktree?";
-  - los van alles: "hoe zet ik een postgres-dump terug?".
-- **Context die vanzelf meegaat:** de pane met focus (map, branch, laatste output), wat hij recent zag, en `git status` van die repo. Andere panes alleen als je erom vraagt.
-- **Doorvragen:** elk gesprek is een Claude-sessie. Het eerste antwoord geeft een session-id (`claude -p --output-format json`), en vervolgvragen gaan verder met `--resume <id>`. Er is één gesprek per pane, tot je het wolkje sluit.
-- **Plakken:** een fout van ergens anders (Slack, Sentry, een mail) plak je in de vraagbalk. Hij legt ze uit in de context van de repo van de pane.
-- **Als chatbot:** het wolkje is een gesprek. Je vragen en zijn antwoorden blijven erin staan tot je het sluit. Voor een langer gesprek opent een knop een groter venster (`openOverlay({ kind: "window" })`) met de hele geschiedenis.
-- **Navigeren:** een antwoord kan knoppen hebben die je ergens heen brengen, telkens met één klik:
-  - naar de pane of tab waar iets draait (`run("pane.focus", ...)`, `run("tab.select", ...)`). Vraag "waar draait de api van feat/login?" en hij brengt je naar die pane;
-  - naar een bestand op de juiste regel in Cursor (`cursor -g <bestand>:<regel>`);
-  - naar de PR, de CI-run of de pagina in je browser (`open <url>`).
-- **Zelfde regels als bij de uitleg:** Claude leest alleen, draait alleen controles uit de vaste lijst, en commando's lopen pas na jouw klik.
+- **What you can ask:**
+  - about an error: "why does this fail?";
+  - about the code: "where is that mail sent?";
+  - about your stack: "is everything from this worktree running?";
+  - about anything: "how do I restore a postgres dump?".
+- **Context that goes along by itself:** the focused pane (folder, branch, last output), what it saw recently, and `git status` of that repo. Other panes only when you ask for them.
+- **Follow-up questions:** every conversation is a Claude session. The first answer gives a session id (`claude -p --output-format json`), and follow-ups continue it with `--resume <id>`. There is one conversation per pane, until you close the bubble.
+- **Pasting:** paste an error from somewhere else (Slack, Sentry, an email) into the question bar. It explains it in the context of the pane's repo.
+- **As a chatbot:** the bubble is a conversation. Your questions and its answers stay in it until you close it. For a longer conversation, a button opens a bigger window (`openOverlay({ kind: "window" })`) with the whole history.
+- **Navigating:** an answer can have buttons that take you somewhere, each with one click:
+  - to the pane or tab where something runs (`run("pane.focus", ...)`, `run("tab.select", ...)`). Ask "where does the api of feat/login run?" and it takes you to that pane;
+  - to a file at the right line in Cursor (`cursor -g <file>:<line>`);
+  - to the PR, the CI run or the page in your browser (`open <url>`).
+- **Same rules as for explanations:** Claude only reads, only runs checks from the fixed list, and commands run only after your click.
 
-## Hoe het werkt
+## How it works
 
-Drie delen:
+Three parts:
 
-1. **De mod** in de Herdr-app: de papegaai, het wolkje en de knop. Hij doet zelf niets zwaars. Hij volgt `~/.parrot/events/` met `watchFolder`, toont wat er binnenkomt en roept Claude aan na een klik.
-2. **De zsh-hook** (`preexec` en `precmd`, één bestand dat je in `.zshrc` sourcet) schrijft na elk commando een regel naar `~/.parrot/events/`: het commando, de exitcode, de map, de duur, het tijdstip en de pid van de shell. Parrot koppelt de pid aan een terminal via `hc ls --json` (het veld `pid`).
-3. **De wachter** (`parrot-watch`): een klein Bun-script dat op de achtergrond draait als terminal van herdr-core (`hc run --bg --name parrot-watch`). De mod start hem als parrot aan staat en stopt hem met `hc kill parrot-watch` als je hem uitzet. Hij volgt de bronnen buiten de terminal (zie Bronnen) en schrijft wat hij ziet als events in dezelfde map. De mod kan dat niet zelf, want `exec` stopt na hoogstens 10 minuten.
+1. **The mod** in the Herdr app: the parrot, the bubble and the button. It does nothing heavy itself. It follows `~/.parrot/events/` with `watchFolder`, shows what comes in and calls Claude after a click.
+2. **The zsh hook** (`preexec` and `precmd`, one file you source in `.zshrc`) writes a line to `~/.parrot/events/` after every command: the command, the exit code, the folder, the duration, the time and the shell's pid. Parrot links the pid to a terminal through `hc ls --json` (the `pid` field).
+3. **The watcher** (`parrot-watch`): a small Bun script that runs in the background as a herdr-core terminal (`hc run --bg --name parrot-watch`). The mod starts it when parrot is on and stops it with `hc kill parrot-watch` when you turn it off. It follows the sources beyond the terminal (see Sources) and writes what it sees as events in the same folder. The mod cannot do that itself, because `exec` stops after 10 minutes at most.
 
-Na een klik:
+After a click:
 
-1. **Context verzamelen.** Bij een terminalfout knipt parrot de output van dat ene commando uit `hc read`, tussen de promptregels. Bij andere fouten neemt hij de logregels, de CI-log of de browserfout uit het event. Daarbij komen telkens de map, de branch en `git status`.
-2. **Geheimen maskeren en het Claude vragen:** `claude -p --output-format json`, met alleen tools die lezen en de vaste lijst controles (zie Nauwkeurigheid).
-3. **Het antwoord tonen.** Het wolkje toont het antwoord met het label Gecontroleerd of Vermoeden, de regels waarop het steunt en de voorgestelde fix als knop.
-4. **De fix draaien, met één klik.** Een fix kan uit meerdere stappen bestaan, maar het blijft één knop.
-   - Parrot stuurt de eerste stap met `hc send <terminal> "<cmd>"` en wacht tot de hook exitcode 0 meldt voor die terminal. Dan stuurt hij de volgende stap.
-   - Het wolkje toont welke stap loopt en welke klaar is.
-   - Faalt een stap, dan stopt hij en schrikt hij opnieuw op, met die fout als context.
+1. **Gather context.** For a terminal error, parrot cuts the output of that one command out of `hc read`, between the prompt lines. For other errors it takes the log lines, the CI log or the browser error from the event. The folder, the branch and `git status` always go along.
+2. **Mask secrets and ask Claude:** `claude -p --output-format json`, with only tools that read and the fixed list of checks (see Accuracy).
+3. **Show the answer.** The bubble shows the answer with the label Checked or Hunch, the lines it rests on and the suggested fix as a button.
+4. **Run the fix, with one click.** A fix can have several steps, but it stays one button.
+   - Parrot sends the first step with `hc send <terminal> "<cmd>"` and waits until the hook reports exit code 0 for that terminal. Then it sends the next step.
+   - The bubble shows which step is running and which are done.
+   - If a step fails, it stops and startles again, with that error as context.
 
-## Aan en uit
+## On and off
 
-Een knop **Parrot** in de tabbalk, naast je andere mod-knoppen zoals Chartroom, zet hem aan of uit. ⌥⌘P doet hetzelfde (`parrot.toggle`).
+A **Parrot** button in the tab bar, next to your other mod buttons such as Chartroom, turns it on or off. ⌥⌘P does the same (`parrot.toggle`).
 
-- **Alleen met een terminal in de tab:** parrot kijkt naar shells, niet naar agents.
-  - In een tab met alleen een agent-sessie kun je hem niet aanzetten: de knop staat gedimd, en een klik of ⌥⌘P geeft een melding.
-  - Heeft de tab een terminal-pane, dan kijkt hij daarnaar, ook terwijl je in de agent-sessie ernaast typt.
-- **Aan:** de papegaai staat rechtsboven in het venster, onder de tabbalk en de titelbalk van de panes. Sleep je hem ergens anders heen, dan houdt Herdr die plek bij. Vanaf v0.5 start ook de wachter.
-- **Uit:** het venster sluit, de wachter stopt, en de hook schrijft niets meer weg zolang `~/.parrot/off` bestaat. Geen meekijken, geen squawk en geen Claude.
-- **De knop** toont een kleine papegaaienkop: in kleur als de papegaai er staat, grijs als hij uit staat of de tab geen terminal heeft.
+- **Only with a terminal in the tab:** parrot watches shells, not agents.
+  - In a tab with only an agent session you cannot turn it on: the button is dim, and a click or ⌥⌘P shows a notice.
+  - If the tab has a terminal pane, it watches that one, also while you type in the agent session beside it.
+- **On:** the parrot stands in the top right of the window, under the tab bar and the panes' title bar. If you drag it somewhere else, Herdr remembers that spot. From v0.5 the watcher starts too.
+- **Off:** the window closes, the watcher stops, and the hook writes nothing while `~/.parrot/off` exists. No watching, no squawk and no Claude.
+- **The button** shows a small parrot head: in colour while the parrot is out, grey while it is off or the tab has no terminal.
 
-`install.sh` zet de knop in de tabbalk zoals bij chartroom (een block `parrot-button` met de mod en `props: { button: true }` in de rij van de tabbalk) en bindt ⌥⌘P en ⌥⇧⌘P als die toetsen vrij zijn.
+`install.sh` puts the button in the tab bar as chartroom does (a `parrot-button` block with the mod and `props: { button: true }` in the tab bar's row) and binds ⌥⌘P and ⌥⇧⌘P when those keys are free.
 
-## Nauwkeurigheid
+## Accuracy
 
-Getest op een van je shells: `hc read` geeft de letterlijke tekst van een pane terug, met de promptregels, zonder kleuren, en met de hele geschiedenis (`"complete": true`).
+Tested on one of your shells: `hc read` returns a pane's literal text, with the prompt lines, without colours, and with the whole history (`"complete": true`).
 
-| Stap | Hoe goed | Wat we doen |
+| Step | How good | What we do |
 |---|---|---|
-| Wat hij ziet | Letterlijke tekst, geen screenshot. Mist de kleuren, en van fullscreen-programma's (vim, htop, lazygit) alleen het huidige scherm | Fouten herkennen aan woorden, niet aan kleur |
-| Welke output bij welk commando hoort | Goed: de hook kent het commando en het tijdstip, en de promptregels staan in de tekst | Knippen tussen de prompt van dat commando en de volgende. Bij lange output het begin, het einde en de regels met `error`, `fail` of `exception` |
-| Fouten buiten de terminal herkennen | Met patronen per bron, dus vals alarm is mogelijk | Eigen regels per bron, dezelfde fout na elkaar telt als één melding met een teller, en een knop "dit is geen fout" die dat patroon stil zet |
-| De diagnose | Hangt af van wat Claude mag nakijken | Drie niveaus, hieronder |
+| What it sees | Literal text, no screenshot. It misses the colours, and of full-screen programs (vim, htop, lazygit) only the current screen | Recognise errors by words, not by colour |
+| Which output belongs to which command | Good: the hook knows the command and the time, and the prompt lines are in the text | Cut between that command's prompt and the next. For long output, the start, the end and the lines with `error`, `fail` or `exception` |
+| Recognising errors beyond the terminal | With patterns per source, so false alarms are possible | Own rules per source, the same error in a row counts as one alert with a counter, and a "this is no error" button that silences that pattern |
+| The diagnosis | Depends on what Claude may check | Three levels, below |
 
-De drie niveaus van de diagnose:
+The three levels of the diagnosis:
 
-1. **Alleen de tekst:** goed voor bekende fouten (stack traces, bezette poorten, ontbrekende modules, git-conflicten), maar soms gokken.
-2. **Met de code:** Read, Grep en Glob, zodat Claude het bestand en de regel uit een stack trace opzoekt.
-3. **Met controles die alleen lezen:** een vaste lijst commando's die Claude zelf mag draaien, via `--allowedTools "Bash(<commando>:*)"`. Om te beginnen: `git status`, `git log -5`, `git diff --stat`, `docker compose ps`, `docker compose logs --tail`, `lsof -i`, `node -v`, `pnpm -v` en `gh pr checks`. Niets dat schrijft, stopt of installeert.
+1. **Only the text:** good for known errors (stack traces, ports in use, missing modules, git conflicts), but sometimes a guess.
+2. **With the code:** Read, Grep and Glob, so Claude looks up the file and the line from a stack trace.
+3. **With checks that only read:** a fixed list of commands Claude may run itself, through `--allowedTools "Bash(<command>:*)"`. To start with: `git status`, `git log -5`, `git diff --stat`, `docker compose ps`, `docker compose logs --tail`, `lsof -i`, `node -v`, `pnpm -v` and `gh pr checks`. Nothing that writes, stops or installs.
 
-Elk antwoord krijgt een label: **Gecontroleerd**, met de controle die hij draaide, of **Vermoeden**, als hij het alleen uit de tekst haalt. Eronder staan de regels waarop het steunt.
+Every answer gets a label: **Checked**, with the check it ran, or **Hunch**, when it only goes by the text. Under it are the lines it rests on.
 
-**Geheimen.** Voor er iets naar Claude gaat, maskeert parrot bekende patronen: API-keys, tokens, JWT's, wachtwoorden in URLs en waarden uit `.env`. Dat vangt niet alles, en daarom gaat er pas iets weg na jouw klik.
+**Secrets.** Before anything goes to Claude, parrot masks known patterns: API keys, tokens, JWTs, passwords in URLs and values from `.env`. That does not catch everything, which is why nothing leaves before your click.
 
-## Bronnen: fouten buiten de terminal
+## Sources: errors beyond the terminal
 
-**Voorlopig buiten scope** (sinds planversie 4): de wachter, de logs van je stack, de CI van je PR en de browser-extensie. Parrot blijft bij de terminal en wat je zelf in de chat plakt. Dit stuk blijft staan als idee voor later.
+**Out of scope for now** (since plan version 4): the watcher, your stack's logs, your PR's CI and the browser extension. Parrot sticks to the terminal and to what you paste into the chat yourself. This section stays as an idea for later.
 
-De wachter herkent fouten lokaal, met patronen, zonder Claude. Claude komt pas na je klik.
+The watcher recognises errors locally, with patterns, without Claude. Claude only comes in after your click.
 
-| Bron | Wat hij ziet | Hoe | Wanneer |
+| Source | What it sees | How | When |
 |---|---|---|---|
-| Commando's in je shells | Een commando dat eindigt met een foutcode | De zsh-hook | v1 |
-| Plakken | Een fout van eender waar (Slack, Sentry, een mail) | De vraagbalk | v1 |
-| Draaiende programma's in andere panes (dev-server, test-watcher) | Een fout die verschijnt terwijl het programma blijft draaien | De wachter leest die panes met `hc read` als ze veranderen en zoekt nieuwe foutregels | v2 |
-| De logs van je stack | Fouten in de containers van de worktree (api, worker, db) | `docker compose logs --follow`, per worktree met een wt-stack | v2 |
-| Wat je recent veranderde | Geen fouten, wel context: "dat bestand heb je net aangepast" | `git diff` en `git log` bij de uitleg | v2 |
-| De CI van je PR | Een rode check op de branch van een worktree | `gh pr checks` om de paar minuten; bij de uitleg `gh run view --log-failed` | v3 |
-| Je lokale app in de browser | Consolefouten en mislukte requests (4xx en 5xx) op localhost | Een kleine Chrome-extensie die alleen localhost volgt en naar de wachter op `127.0.0.1` stuurt | v4 |
+| Commands in your shells | A command that ends with an error code | The zsh hook | v1 |
+| Pasting | An error from anywhere (Slack, Sentry, an email) | The question bar | v1 |
+| Running programs in other panes (dev server, test watcher) | An error that shows up while the program keeps running | The watcher reads those panes with `hc read` when they change and looks for new error lines | v2 |
+| Your stack's logs | Errors in the worktree's containers (api, worker, db) | `docker compose logs --follow`, per worktree with a wt stack | v2 |
+| What you changed recently | No errors, but context: "you just changed that file" | `git diff` and `git log` with the explanation | v2 |
+| Your PR's CI | A red check on a worktree's branch | `gh pr checks` every few minutes; for the explanation `gh run view --log-failed` | v3 |
+| Your local app in the browser | Console errors and failed requests (4xx and 5xx) on localhost | A small Chrome extension that only follows localhost and sends to the watcher on `127.0.0.1` | v4 |
 
-Hoe hij het je laat weten:
+How it lets you know:
 
-- **Je kijkt naar Herdr:** hij schrikt op en squawkt.
-- **Je zit ergens anders, bijvoorbeeld in de browser:** ook een Herdr-melding met `notify()`, zodat je het ziet als je terugkomt.
-- **Stille modus:** alleen het uitroepteken, geen geluid.
+- **You are looking at Herdr:** it startles and squawks.
+- **You are somewhere else, in the browser for example:** a Herdr notification with `notify()` as well, so you see it when you come back.
+- **Silent mode:** only the exclamation mark, no sound.
 
-## Wat parrot kan binnen de Herdr-app
+## What parrot can do in the Herdr app
 
-Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (`~/.config/herdr-app/AGENTS.md`, `herdr.d.ts`, `gpui-kit.d.ts`, `hc --help`).
+Each point below rests on something the Herdr app or herdr-core offers today (`~/.config/herdr-app/AGENTS.md`, `herdr.d.ts`, `gpui-kit.d.ts`, `hc --help`).
 
-| Kan | Hoe |
+| Can | How |
 |---|---|
-| Vrij staan, zonder kaartje rond zich, en versleept worden | Een venster zonder kader: `openOverlay({ kind: "window", frame: "none", key: "parrot-corner", at })`. Herdr houdt de plek bij waar je het neerzet |
-| Of als kaartje aan de rand van het werkgebied | Floating block in de layout (`floating`, `edge`, `align`); Herdr tekent er wel altijd een kader met schaduw rond |
-| Een aan/uit-knop in de tabbalk, naast je andere mod-knoppen | Een block met de mod in de rij van de tabbalk, zoals `chartroom-button`; de knop opent of sluit het venster |
-| Half achter de rand zitten, zodat hij geen terminaltekst bedekt | `peek` op een floating block aan een zijkant: alleen zijn kop steekt uit tot je erover hovert |
-| Een pixel-art-papegaai in volle kleur tonen | `image()` met PNG-frames uit de mod-map |
-| Animeren | Native: `loop("top")` voor wiegen, `loop("left")` voor schudden, `frames()` voor de z's en de "...". Een timer alleen voor één knipperframe om de paar seconden en voor korte reeksen (schrikken, dansen, praten) |
-| Weten welke pane focus heeft en wat er draait | `panes()`, `focused()`, `agents()`; `hc ls --json` geeft per terminal het programma op de voorgrond |
-| De tekst van een pane lezen | `hc read <t> --lines N`: scherm plus geschiedenis |
-| Een helper op de achtergrond laten draaien | `hc run --bg --name parrot-watch` start hem als terminal van herdr-core; `hc kill parrot-watch` stopt hem |
-| Volgen wanneer terminals veranderen | `hc events` geeft elke verandering als JSON-regel |
-| Je eigen Claude vragen, ook met doorvragen | `exec("claude", ["-p", ...])`, maximaal 10 minuten per call; `--resume <session-id>` voor een vervolgvraag |
-| Een fix in de pane laten lopen, stap voor stap | `hc send <t> <tekst>` (plakt en drukt Enter, wacht als je zelf iets half getypt hebt); na elke stap wacht parrot op het hook-event met exitcode 0 |
-| Je ergens heen brengen | `run("pane.focus", ...)`, `run("tab.select", ...)`, `cursor -g <bestand>:<regel>`, `open <url>` |
-| Geluid maken | `playSound(<mp3>)`: een eigen squawk |
-| Een melding geven als je ergens anders kijkt | `notify()`, de toast die je al hebt |
-| Instellingen en geheugen bewaren | Gedeelde state per mod (stille modus, piratentaal aan of uit, model, stilgezette patronen) |
-| Een groter venster openen voor een lang antwoord | `openOverlay({ kind: "window" })`, versleepbaar, zonder rand als we willen |
+| Stand free, without a card around it, and be dragged | A frameless window: `openOverlay({ kind: "window", frame: "none", key: "parrot-corner", at })`. Herdr remembers where you put it |
+| Or sit as a card at the edge of the work area | A floating block in the layout (`floating`, `edge`, `align`); Herdr always draws a frame with a shadow around it |
+| An on/off button in the tab bar, next to your other mod buttons | A block with the mod in the tab bar's row, like `chartroom-button`; the button opens or closes the window |
+| Sit half behind the edge, so it covers no terminal text | `peek` on a floating block at a side: only its head sticks out until you hover over it |
+| Show a full-colour pixel-art parrot | `image()` with PNG frames from the mod's folder |
+| Animate | Native: `loop("top")` for swaying, `loop("left")` for shaking, `frames()` for the z's and the "...". A timer only for one blink frame every few seconds and for short sequences (startling, dancing, talking) |
+| Know which pane has focus and what runs there | `panes()`, `focused()`, `agents()`; `hc ls --json` gives the foreground program per terminal |
+| Read a pane's text | `hc read <t> --lines N`: screen plus history |
+| Run a helper in the background | `hc run --bg --name parrot-watch` starts it as a herdr-core terminal; `hc kill parrot-watch` stops it |
+| Follow when terminals change | `hc events` gives every change as a JSON line |
+| Ask your own Claude, with follow-up questions | `exec("claude", ["-p", ...])`, at most 10 minutes per call; `--resume <session-id>` for a follow-up |
+| Run a fix in the pane, step by step | `hc send <t> <text>` (pastes and presses Enter, waits when you have half typed something yourself); after each step parrot waits for the hook event with exit code 0 |
+| Take you somewhere | `run("pane.focus", ...)`, `run("tab.select", ...)`, `cursor -g <file>:<line>`, `open <url>` |
+| Make a sound | `playSound(<mp3>)`: a squawk of its own |
+| Notify you while you look elsewhere | `notify()`, the toast you already have |
+| Keep settings and memory | Shared state per mod (silent mode, pirate talk on or off, model, silenced patterns) |
+| Open a bigger window for a long answer | `openOverlay({ kind: "window" })`, draggable, without a border if we want |
 
-## Wat parrot niet kan
+## What parrot cannot do
 
-| Kan niet | Waarom | Wat we doen |
+| Cannot | Why | What we do |
 |---|---|---|
-| In de terminaltekst zelf tekenen, tussen je regels | Mods tekenen alleen in hun eigen block of overlay | Hij staat boven het werkgebied, niet erin |
-| Vanzelf weten dat een commando faalde | herdr-core geeft alleen de exitcode van de terminal zelf, niet van elk commando erin | De zsh-hook |
-| Zelf blijven volgen vanuit de mod | `exec` stopt na hoogstens 10 minuten | De wachter draait als achtergrondterminal van herdr-core |
-| In de browser kijken | De Herdr-app heeft geen toegang tot je browser | Een Chrome-extensie voor localhost (v4) |
-| Merken dat een dev-server goed opgestart is | De hook ziet alleen commando's die eindigen; `pnpm dev` blijft draaien | Fouten van een draaiende server ziet de wachter wel (v2); dansen doet hij alleen na commando's die eindigen |
-| Precies op de rand van één bepaalde pane gaan zitten | `panes()` geeft geen positie in pixels; een floating block hoort bij één deel van de layout | v1: één papegaai die de pane met de fout noemt. Spike: hem in de pane-header laten zitten (zie Open vragen) |
-| Vrij over het hele venster vliegen | Een doorzichtig venster over alles zou je klikken opvangen | Wegvliegen en aankomen als animatie binnen zijn eigen venster |
-| Draaien of schalen als animatie | Native motion kent alleen `opacity`, `width`, `height`, `left`, `top` | Kop scheef, vleugels en dansen tekenen we als aparte frames |
-| HTML, CSS of een web view gebruiken | Mods zijn native GPUI | Alles als native elementen en PNG-frames |
-| Het antwoord van Claude woord per woord tonen | `exec` geeft de uitvoer pas als het programma klaar is | "Denkt na" tot het antwoord er is; later eventueel `--output-format stream-json` naar een bestand dat de mod volgt |
-| Meekijken in een agent-pane | Kan technisch wel, maar daar zit al een Claude, en zijn context verstoren we niet | Agent-panes slaat hij over |
-| Shells op een andere machine volgen | `watchFolder` werkt alleen lokaal | v1 alleen lokaal; later pollen met `readTextFile({ on })` |
+| Draw in the terminal text itself, between your lines | Mods only draw in their own block or overlay | It stands above the work area, not in it |
+| Know by itself that a command failed | herdr-core only gives the exit code of the terminal itself, not of each command in it | The zsh hook |
+| Keep following from the mod itself | `exec` stops after 10 minutes at most | The watcher runs as a herdr-core background terminal |
+| Look into the browser | The Herdr app has no access to your browser | A Chrome extension for localhost (v4) |
+| Notice that a dev server started fine | The hook only sees commands that end; `pnpm dev` keeps running | The watcher does see a running server's errors (v2); it only dances after commands that end |
+| Sit exactly on the edge of one particular pane | `panes()` gives no position in pixels; a floating block belongs to one part of the layout | v1: one parrot that names the pane with the error. Spike: let it sit in the pane header (see Questions for the spike) |
+| Fly freely over the whole window | A transparent window over everything would catch your clicks | Flying off and landing as an animation inside its own window |
+| Rotate or scale as an animation | Native motion only knows `opacity`, `width`, `height`, `left`, `top` | We draw the tilted head, the wings and the dance as separate frames |
+| Use HTML, CSS or a web view | Mods are native GPUI | Everything as native elements and PNG frames |
+| Show Claude's answer word by word | `exec` gives the output only when the program is done | "Thinking" until the answer is there; later perhaps `--output-format stream-json` to a file the mod follows |
+| Watch an agent pane | Technically possible, but a Claude is already at work there, and we do not disturb its context | It skips agent panes |
+| Follow shells on another machine | `watchFolder` only works locally | v1 local only; later polling with `readTextFile({ on })` |
 
-## Privacy, kosten en veiligheid
+## Privacy, cost and safety
 
-- **Herkennen gebeurt lokaal.** De hook en de wachter gebruiken patronen, geen Claude.
-- **Claude, alleen na je klik of bij een typfout.** Er gaat niets naar Claude tot je op de papegaai klikt of iets vraagt. De enige uitzondering (sinds planversie 7, op jouw vraag) is een commando dat zsh niet vindt of dat volgens zijn output verkeerd gebruikt is. Dan vraagt parrot je Claude meteen wat je bedoelde: met Haiku, zonder tools en zonder bewaarde sessie, met de regel, de gemaskeerde output, de scripts van het project en de commando's die je gebruikt. Een falende testrun of build wacht wel op je klik.
-- **Wat er meegaat:** alleen de context van die ene fout of vraag (zie Hoe het werkt), met de geheimen gemaskeerd.
-- **Claude leest alleen:** Read, Grep, Glob en de vaste lijst controles. Nooit Edit, Write of vrije Bash.
-- **Eén klik, ook voor wat iets weggooit.** Een fix loopt pas na jouw klik, en nooit meer dan één klik.
-  - Commando's die iets weggooien of overschrijven (`rm -rf`, `git reset --hard`, `git push --force`, `kill`, `DROP`, `docker system prune`, ...) krijgen een rood label en lopen pas na 3 seconden.
-  - In die tijd annuleert een klik of Esc. Een bevestigingsklik is niet nodig.
-- **Liever zelf Enter geven?** Een instelling zet zo'n commando in je prompt zonder Enter, zodat je het nog ziet en zelf start. zsh's `print -z` kan dat, ook met `&&` en pipes (getest in de spike); een onzichtbaar alternatief via het klembord testen we in PR 4.
-- **De browser-extensie** volgt alleen localhost en stuurt alleen naar `127.0.0.1`.
-- **Uit is uit:** geen hook-events, geen wachter en geen Claude.
-- **Model:** standaard een snel model voor de eerste uitleg; vervolgvragen op het model dat je kiest, zoals de Ask van chartroom.
+- **Recognising happens locally.** The hook and the watcher use patterns, not Claude.
+- **Claude, only after your click or on a typo.** Nothing goes to Claude until you click the parrot or ask something. The one exception (since plan version 7, at your request) is a command zsh cannot find, or that its output says was used wrong. Then parrot asks your Claude at once what you meant: with Haiku, without tools and without a saved session, with the line, the masked output, the project's scripts and the commands you use. A failing test run or build does wait for your click.
+- **What goes along:** only the context of that one error or question (see How it works), with the secrets masked.
+- **Claude only reads:** Read, Grep, Glob and the fixed list of checks. Never Edit, Write or free Bash.
+- **One click, also for what throws something away.** A fix runs only after your click, and never takes more than one click.
+  - Commands that throw away or overwrite something (`rm -rf`, `git reset --hard`, `git push --force`, `kill`, `DROP`, `docker system prune`, ...) get a red label and run only after 3 seconds.
+  - In that time a click or Esc cancels. No confirm click is needed.
+- **Rather press Enter yourself?** A setting puts such a command on your prompt without Enter, so you still see it and start it yourself. zsh's `print -z` can do that, also with `&&` and pipes (tested in the spike); an invisible alternative through the clipboard we test in PR 4.
+- **The browser extension** only follows localhost and only sends to `127.0.0.1`.
+- **Off is off:** no hook events, no watcher and no Claude.
+- **Model:** a fast model by default for the first explanation; follow-up questions on the model you pick, like chartroom's Ask.
 
-## Vragen voor de spike
+## Questions for the spike
 
-1. **Waar hij zit.** Drie kandidaten, in volgorde van voorkeur:
-   - een venster zonder kader (`frame: "none"`): staat vrij en is versleepbaar. Is de achtergrond echt doorzichtig rond de sprite, en blijft hij staan als je van tab wisselt?
-   - een floating block: betrouwbaar en met `peek`, maar altijd in een kaartje;
-   - de pane-header: elke pane heeft een header-mod (`pane`, 30 px hoog). Als we die clonen, kan hij precies op de pane met de fout zitten en van pane naar pane "vliegen". Is 30 px groot genoeg voor een leesbare papegaai?
-2. **Frames wisselen** met `cx.sleep` aan zo'n 8 per seconde: vloeiend genoeg, en zuinig genoeg als hij urenlang rustig zit? Stilzitten kan zonder timer, met alleen native motion.
-3. **De zsh-hook** naast de shell-integratie van Ghostty en Herdr: komen ze elkaar niet in de weg, en vangt hij ook commando's met pipes en `&&`?
-4. **Snelheid** van `claude -p` voor een eerste uitleg: hoeveel seconden tot het wolkje er is, per model?
-5. **De knop en het bewaarde venster.** Na een herstart opent Herdr het venster opnieuw (`keep: true`), met een nieuw id. De knop moet het terugvinden om het te kunnen sluiten, via de gedeelde state van de mod.
-6. **De wachter als achtergrondterminal.** Blijft een terminal van `hc run --bg` buiten je tabs, en hoe start de mod hem opnieuw na een herstart van herdr-core?
-7. **`hc events`:** meldt het ook nieuwe output, of moet de wachter panes met draaiende programma's om de paar seconden lezen?
-8. **Vals alarm:** hoeveel geven de patronen op echte dev-server- en containerlogs uit je eigen stacks?
-9. **In je prompt zonder Enter:** typt `hc keys` een commando met spaties, `&&` en pipes correct in, toets per toets?
+1. **Where it sits.** Three candidates, in order of preference:
+   - a frameless window (`frame: "none"`): stands free and can be dragged. Is the background really transparent around the sprite, and does it stay when you switch tabs?
+   - a floating block: reliable and with `peek`, but always in a card;
+   - the pane header: every pane has a header mod (`pane`, 30 px high). If we clone it, it can sit exactly on the pane with the error and "fly" from pane to pane. Is 30 px big enough for a readable parrot?
+2. **Switching frames** with `cx.sleep` at about 8 per second: smooth enough, and frugal enough when it sits calm for hours? Sitting still can do without a timer, with native motion only.
+3. **The zsh hook** beside the shell integration of Ghostty and Herdr: do they stay out of each other's way, and does it also catch commands with pipes and `&&`?
+4. **Speed** of `claude -p` for a first explanation: how many seconds until the bubble is there, per model?
+5. **The button and the kept window.** After a restart Herdr opens the window again (`keep: true`), with a new id. The button must find it again to be able to close it, through the mod's shared state.
+6. **The watcher as a background terminal.** Does a terminal from `hc run --bg` stay out of your tabs, and how does the mod start it again after a herdr-core restart?
+7. **`hc events`:** does it report new output too, or must the watcher read panes with running programs every few seconds?
+8. **False alarms:** how many do the patterns give on real dev server and container logs from your own stacks?
+9. **On your prompt without Enter:** does `hc keys` type a command with spaces, `&&` and pipes correctly, key by key?
 
-## Uitkomst van de spike
+## Outcome of the spike
 
-Getest op 22 november 2026 in de Herdr-app, op branch `spike/perch` (niet gemerged).
+Tested on 22 November 2026 in the Herdr app, on branch `spike/perch` (not merged).
 
-1. **Waar hij zit:** in een venster zonder kader.
-   - De achtergrond is echt doorzichtig: de papegaai staat los op de terminal, zonder kaartje of schaduw. Floating block en pane-header zijn dus niet meer nodig.
-   - `mod.json` kan het venster zelf beschrijven (`"overlay": { "kind": "window", "frame": "none", "key": "parrot" }`), en `mod.open` opent en sluit het. In PR 1 bleek een eigen `parrot.toggle` via de knop beter; zie punt 5.
-   - `herdr-app do parrot.<commando>` bereikt het venster. Zo kunnen de hook en de wachter hem later laten schrikken.
-   - Een mod achter een symlink herlaadt niet bij opslaan. Het venster sluiten en opnieuw openen laadt de nieuwe versie; `install.sh` linkt opnieuw, zoals bij chartroom.
-2. **Animatie:** Herdr raadt timers voor animatie af, want elke redraw hertekent het hele venster.
-   - Rustig, meekijken en slapen zijn dus native: wiegen met `loop("top")` en de z's als tekst met `frames()`. Knipperen is één frame om de 4 à 7 seconden.
-   - Alleen korte reeksen (schrikken, dansen, praten) lopen met een timer. Alle stemmingen tonen correct.
-3. **De zsh-hook:** werkt.
-   - Hij geeft de juiste exitcode, ook met pipes en `&&`, en geldige JSON, ook met aanhalingstekens en backslashes.
-   - Hij staat als eerste in `precmd_functions`, zodat `$?` nog van het commando is. In PR 2 zet hij zich bij elk commando opnieuw vooraan, voor het geval een andere hook later voorkruipt.
-4. **Snelheid:** `claude -p` met een eigen systeemprompt, alleen Read, Grep en Glob, en zonder MCP-servers geeft een antwoord in zo'n 4,5 s op Haiku en 5 s op Sonnet.
-   - `--bare` valt af: dat gebruikt alleen een API-key, niet je abonnement.
-   - Je eigen `~/.claude/CLAUDE.md` wordt mee geladen: het antwoord begon met "Captain". In PR 3 zoeken we hoe parrot zijn eigen toon houdt.
-5. **De knop en het venster** (bijgesteld tijdens PR 1, na je test):
-   - `at: "pointer"` werkt niet voor vensters, en Herdr onthoudt per `key` de eerste plek van een venster.
-   - Een mod kent de grootte van het Herdr-venster niet. De knop meet die daarom één keer per sessie met een strookje van 2 punten hoog over de volle breedte (`width: 1`), en opent de papegaai dan rechtsboven.
-   - De knop is de kopie van parrot die er altijd is. Hij opent en sluit de papegaai zelf als de tab verandert, en neemt ⌥⌘P (`parrot.toggle`).
-   - Een papegaaivenster dat de knop niet zelf opende, zoals een bewaard venster van een oudere versie, sluit meteen.
-6. **De wachter als achtergrondterminal:** een terminal van `hc run --bg --no-parent --name ...` verschijnt niet in je Herdr-venster.
-7. **`hc events`** meldt alleen welk programma op de voorgrond draait (begin en einde van een commando), geen output. De wachter leest panes met een draaiend programma dus zelf, om de paar seconden.
-8. **Vals alarm:** pas te meten in PR 5, met echte logs.
-9. **In je prompt zonder Enter:**
-   - `hc keys` kan geen `&` of `|` typen; shift wordt genegeerd.
-   - zsh's `print -z` werkt wel: `hc send <t> " print -z -- '<cmd>'"` zet het commando klaar in de prompt, met `&&` en pipes, zonder het te starten. Het nadeel is één extra regel in de scrollback.
-   - In PR 4 testen we klembord plus `terminal.paste`, dat onzichtbaar is.
+1. **Where it sits:** in a frameless window.
+   - The background really is transparent: the parrot stands free on the terminal, without a card or a shadow. A floating block and the pane header are no longer needed.
+   - `mod.json` can describe the window itself (`"overlay": { "kind": "window", "frame": "none", "key": "parrot" }`), and `mod.open` opens and closes it. In PR 1 a `parrot.toggle` of its own through the button turned out better; see point 5.
+   - `herdr-app do parrot.<command>` reaches the window. That way the hook and the watcher can startle it later.
+   - A mod behind a symlink does not reload on save. Closing and reopening the window loads the new version; `install.sh` links again, as with chartroom.
+2. **Animation:** Herdr advises against timers for animation, because every redraw redraws the whole window.
+   - Calm, watching and asleep are therefore native: swaying with `loop("top")` and the z's as text with `frames()`. A blink is one frame every 4 to 7 seconds.
+   - Only short sequences (startling, dancing, talking) run on a timer. All moods show correctly.
+3. **The zsh hook:** works.
+   - It gives the right exit code, also with pipes and `&&`, and valid JSON, also with quotes and backslashes.
+   - It is first in `precmd_functions`, so `$?` is still the command's. From PR 2 it puts itself back in front on every command, in case another hook moves ahead later.
+4. **Speed:** `claude -p` with a system prompt of its own, only Read, Grep and Glob, and no MCP servers gives an answer in about 4.5 s on Haiku and 5 s on Sonnet.
+   - `--bare` is out: it only uses an API key, not your subscription.
+   - Your own `~/.claude/CLAUDE.md` is loaded too: the answer followed its instructions on tone. In PR 3 we look for how parrot keeps a tone of its own.
+5. **The button and the window** (adjusted during PR 1, after your test):
+   - `at: "pointer"` does not work for windows, and Herdr remembers a window's first spot per `key`.
+   - A mod does not know the size of the Herdr window. The button therefore measures it once per session with a 2-point-high strip across the full width (`width: 1`), and then opens the parrot in the top right.
+   - The button is the copy of parrot that is always there. It opens and closes the parrot itself when the tab changes, and takes ⌥⌘P (`parrot.toggle`).
+   - A parrot window the button did not open itself, such as a kept window from an older version, closes at once.
+6. **The watcher as a background terminal:** a terminal from `hc run --bg --no-parent --name ...` does not show in your Herdr window.
+7. **`hc events`** only reports which program runs in the foreground (the start and end of a command), no output. So the watcher reads panes with a running program itself, every few seconds.
+8. **False alarms:** to be measured in PR 5, with real logs.
+9. **On your prompt without Enter:**
+   - `hc keys` cannot type `&` or `|`; shift is ignored.
+   - zsh's `print -z` does work: `hc send <t> " print -z -- '<cmd>'"` puts the command ready on the prompt, with `&&` and pipes, without starting it. The downside is one extra line in the scrollback.
+   - In PR 4 we test the clipboard plus `terminal.paste`, which is invisible.
 
-## Bouwvolgorde
+## Build order
 
-Elk stuk is een eigen PR die op zichzelf werkt.
+Each piece is a PR of its own that works by itself.
 
-1. **Papegaai op de kaart:** de mod op de plek die de spike kiest, de sprite met rustig, slapen en kijkt mee, de aan/uit-knop in de tabbalk met ⌥⌘P, en `install.sh` die de knop en de toetsen toevoegt zoals bij chartroom.
-2. **Chatten met parrot:**
-   - een klik op de papegaai opent een chat over het project van de terminal in je tab;
-   - `claude -p` loopt in de map van die terminal en leest alleen;
-   - de laatste output van de terminal gaat mee, met geheimen gemaskeerd;
-   - doorvragen met `--resume`, één gesprek per project, en de papegaai denkt na terwijl je wacht.
-3. **Schrikken bij terminalfouten, met suggesties bij typfouten:**
-   - de zsh-hook, de events-map en opschrikken (de squawk verhuist naar de afwerking: `playSound` speelt alleen MP3, en hier is geen encoder om er een te maken);
-   - een verkeerd getypt commando (`tetsts`, `gid`) meldt zsh's `command_not_found_handler` meteen;
-   - je Claude zegt welk commando je waarschijnlijk bedoelde, en alleen je Claude (sinds planversie 8): Haiku, een paar seconden. Hij krijgt de regel, de exitcode, de gemaskeerde output (met de hint van de tool zelf erin), de scripts van het project, je aliassen en functies, en de commando's die je gebruikt. Kan Claude niet antwoorden, dan zegt de melding waarom;
-   - één klik zet het commando in je terminal.
-4. **Commando's uit de chat op je prompt** (naar voren gehaald in planversie 9, met "Ask Parrot why" uit 0.3.0 als uitleg bij fouten):
-   - de berichten als chatbubbels in de kleuren van de papegaai: de jouwe blauw, de zijne zacht rood;
-   - vierkant met een rand van 2px, zoals het chatvenster zelf; code in een blok, met onder elk shell-commando een groene link die het op je prompt zet (niet uitgevoerd, de pane krijgt de focus); wat iets weggooit, overschrijft of pusht krijgt een rode link;
-   - "Clear chat" en `/clear` maken de chat van een project leeg.
-5. **Run en controles:** de fix als één knop die hem ook draait (ook met meerdere stappen), het rode label met 3 seconden om te annuleren, het label Gecontroleerd of Vermoeden met de vaste lijst controles, en knoppen die je naar een pane, bestand of URL brengen.
-6. **Afwerking:** de squawk (een MP3), stille modus, piratentaal aan of uit, modelkeuze, README met screenshots in licht en donker.
+1. **The parrot on the map:** the mod in the spot the spike picks, the sprite with calm, asleep and watching, the on/off button in the tab bar with ⌥⌘P, and `install.sh` adding the button and the keys as chartroom does.
+2. **Chat with parrot:**
+   - a click on the parrot opens a chat about the project of the terminal in your tab;
+   - `claude -p` runs in that terminal's folder and only reads;
+   - the terminal's last output goes along, with secrets masked;
+   - follow-up questions with `--resume`, one conversation per project, and the parrot thinks while you wait.
+3. **Startling at terminal errors, with suggestions for typos:**
+   - the zsh hook, the events folder and startling (the squawk moves to the finishing touches: `playSound` only plays MP3, and there is no encoder here to make one);
+   - zsh's `command_not_found_handler` reports a mistyped command (`tetsts`, `gid`) at once;
+   - your Claude says which command you most likely meant, and only your Claude (since plan version 8): Haiku, a few seconds. It gets the line, the exit code, the masked output (with the tool's own hint in it), the project's scripts, your aliases and functions, and the commands you use. When Claude cannot answer, the alert says why;
+   - one click puts the command in your terminal.
+4. **Commands from the chat on your prompt** (brought forward in plan version 9, with "Ask Parrot why" from 0.3.0 as the explanation of errors):
+   - the messages as chat bubbles in the parrot's colours: yours blue, its own soft red;
+   - square with a 2px border, like the chat window itself; code in a block, with under each shell command a green link that puts it on your prompt (not run, the pane gets the focus); what throws away, overwrites or pushes gets a red link;
+   - "Clear chat" and `/clear` empty a project's chat.
+5. **Run and checks:** the fix as one button that also runs it (also with several steps), the red label with 3 seconds to cancel, the Checked or Hunch label with the fixed list of checks, and buttons that take you to a pane, file or URL.
+6. **Finishing touches:** the squawk (an MP3), silent mode, pirate talk on or off, model choice, a README with screenshots in light and dark.
 
-**Voorlopig buiten scope:** de wachter (draaiende programma's in andere panes, de logs van je stack, "Wat hij zag"), de CI van je PR en de browser-extensie.
+**Out of scope for now:** the watcher (running programs in other panes, your stack's logs, "What it saw"), your PR's CI and the browser extension.
 
-## Versies
+## Versions
 
-Parrot volgt [semver](https://semver.org). Tot alles uit de bouwvolgorde er is, blijft hij op 0.x, en elk stuk uit de bouwvolgorde is een minor-versie:
+Parrot follows [semver](https://semver.org). Until everything in the build order is there, it stays on 0.x, and each piece of the build order is a minor version:
 
-| Versie | Wat erbij komt |
+| Version | What it adds |
 |---|---|
-| 0.1.0 | Papegaai op de kaart |
-| 0.2.0 | Chatten met parrot |
-| 0.3.0 | Schrikken bij terminalfouten, met suggesties bij typfouten |
-| 0.4.0 | Commando's uit de chat op je prompt |
-| 0.5.0 | Run en controles |
-| 1.0.0 | Afwerking |
+| 0.1.0 | The parrot on the map |
+| 0.2.0 | Chat with parrot |
+| 0.3.0 | Startling at terminal errors, with suggestions for typos |
+| 0.4.0 | Commands from the chat on your prompt |
+| 0.5.0 | Run and checks |
+| 1.0.0 | Finishing touches |
 
-- **Fixes tussendoor** zijn patch-versies, zoals 0.3.1.
-- **Eén plek voor het nummer:** het versienummer staat alleen in `package.json`. De mod toont het in de tooltip van de knop en `install.sh` drukt het af.
-- **Elke versie** krijgt een stuk in `CHANGELOG.md` (Keep a Changelog) en een git-tag `vX.Y.Z`.
-- **Zodra de repo op GitHub staat:** een release per tag, zoals bij portly.
-- **Het plan** heeft een eigen planversie bovenaan. Die gaat omhoog als de koers verandert, en de schets toont dezelfde.
+- **Fixes in between** are patch versions, such as 0.3.1.
+- **One place for the number:** the version number lives only in `package.json`. The mod shows it in the button's tooltip and `install.sh` prints it.
+- **Every version** gets a section in `CHANGELOG.md` (Keep a Changelog) and a git tag `vX.Y.Z`.
+- **Once the repo is on GitHub:** a release per tag, as with portly.
+- **The plan** has a plan version of its own at the top. It goes up when the course changes, and the sketch shows the same one.
 
-Testen met `bun test` voor de delen zonder app: de hook-regels lezen, output knippen tussen promptregels, geheimen maskeren, foutpatronen per bron (met geanonimiseerde logs als voorbeelden), gevaarlijke commando's herkennen, het antwoord in uitleg, stappen en navigatieknoppen splitsen.
+Testing with `bun test` for the parts without the app: reading the hook's lines, cutting output between prompt lines, masking secrets, error patterns per source (with anonymised logs as examples), recognising dangerous commands, splitting the answer into explanation, steps and navigation buttons.
