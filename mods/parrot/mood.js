@@ -89,9 +89,16 @@ export function find(node, test) {
 
 // Where the parrot lands in a window `width` points wide: in the top right corner, under the tab
 // bar and the panes' title bars, so it covers neither the tabs nor a pane's buttons.
+// The panes' title bar is set on the block that holds them (content.pane.header), or on a node.
+function titleBar(node) {
+  const header = node.content?.pane?.header ?? node.header;
+  return header && header.position !== "bottom" ? header : null;
+}
+
 export function corner(width, layout, size) {
   const bar = find(layout, (n) => n.id === "tabs-row") ?? find(layout, (n) => n.id === "tabs");
-  const header = find(layout, (n) => n.header && n.header.position !== "bottom")?.header;
+  const holder = find(layout, (n) => Boolean(titleBar(n)));
+  const header = holder ? titleBar(holder) : null;
   return {
     x: Math.max(0, Math.round(width - size - MARGIN)),
     y: (bar?.size?.px ?? 42) + (header?.height ?? 0) + 8,

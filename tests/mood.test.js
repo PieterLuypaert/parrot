@@ -140,6 +140,17 @@ describe("corner", () => {
     expect(corner(1512, layout, 104)).toEqual({ x: 1512 - 104 - MARGIN, y: 42 + 30 + 8 });
   });
 
+  test("finds the title bar on the block that holds the panes, as Herdr's layouts set it", () => {
+    const panesBlock = {
+      id: "root", type: "column",
+      children: [
+        { id: "tabs-row", type: "row", size: { px: 42 }, children: [] },
+        { type: "block", content: { pane: { header: { content: { mod: "pane" }, height: 30, position: "top" }, gap: 6 } } },
+      ],
+    };
+    expect(corner(1512, panesBlock, 104).y).toBe(42 + 30 + 8);
+  });
+
   test("uses the tabs block's height without a row, and no title bar when the panes have none", () => {
     const plain = { id: "root", type: "column", children: [{ id: "tabs", type: "block", size: { px: 36 } }] };
     expect(corner(800, plain, 104).y).toBe(36 + 8);
