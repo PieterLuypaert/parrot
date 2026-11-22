@@ -719,7 +719,7 @@ export default class Parrot extends View {
     this.handle = cx.focus_handle();
     this.roots = {};
     this.looking = {};
-    this.seen = -1;
+    this.seen = null;
     this.problem = null;
     if (checking()) return;
     setShared(CHAT, props()?.overlay ?? null);
@@ -780,11 +780,7 @@ export default class Parrot extends View {
     const messages = (root && chats()[root]?.messages) || [];
     const thinking = Boolean(root && busy()[root]);
     const alert = openAlertNow();
-    const count = messages.length + (thinking ? 1 : 0) + (alert ? 1 : 0);
-    if (count !== this.seen) {
-      this.seen = count;
-      if (count > 0) this.scroll.scroll_to_item(count - 1);
-    }
+    this.followLatest(messages, thinking, alert, cx);
     const where = root ? `${projectName(root)}${branch ? ` · ${branch}` : ""}` : "no terminal in this tab";
     // Every press stops here, so the chat never drags: it stays beside its parrot.
     return h_flex().id("parrot-chat").size_full().items_start().on_mouse_down("left", stop)
@@ -829,6 +825,24 @@ export default class Parrot extends View {
   clearChat(root) {
     if (root) setShared(CHATS, withoutChat(chats(), root));
     this.problem = null;
+  }
+
+  // Scrolls to what came in last. An answer replaces the thinking line, so the list keeps its
+  // length and only the last item tells it apart. A long answer lands with its end in view; its
+  // question then comes to the top, so the answer reads from its start.
+  followLatest(messages, thinking, alert, cx) {
+    const last = messages.at(-1);
+    const latest = `${last?.id ?? ""}|${thinking}|${alert?.id ?? ""}`;
+    if (latest === this.seen) return;
+    this.seen = latest;
+    const count = messages.length + (thinking ? 1 : 0) + (alert ? 1 : 0);
+    if (count === 0) return;
+    this.scroll.scroll_to_item(count - 1);
+    if (last?.role !== "parrot" || thinking || alert || messages.length < 2) return;
+    cx.timer.after(50, (cx) => {
+      this.scroll.scroll_to_item(messages.length - 2);
+      cx.notify();
+    });
   }
 
   // The conversation, with an alert as its latest item: it scrolls with the rest, so nothing is
