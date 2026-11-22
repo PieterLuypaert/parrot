@@ -11,7 +11,7 @@ It reacts to your terminal.
 ### Added
 
 - A zsh hook (`hook.zsh`, loaded from `~/.zshrc` by `install.sh`) that tells parrot how each command ended. It starts no process per command and writes nothing while parrot is off.
-- After a typo or a command used wrong, the parrot startles and suggests the command you probably meant: the tool's own hint first (git, pnpm, npm, cargo), then your Claude's guesses (Haiku on your own subscription, asked at once, no tools, no session kept), then whole lines from your history, the commands you use with their second word fixed, the project's scripts (package.json and Makefile), your aliases and functions, and a PATH command a letter off. A click puts it on the prompt, not yet run, with that pane focused.
+- After a typo or a command used wrong, the parrot startles and your Claude suggests the command you probably meant: Haiku on your own subscription, asked at once, with no tools and no session kept, from the line, its exit code, the masked output, the project's scripts (package.json and Makefile), your aliases and functions, and the commands you use. A click puts it on the prompt, not yet run, with that pane focused.
 - After another failure, such as a failing test run, it startles and offers **Ask Parrot why**, which asks your Claude in the chat with the terminal's output.
 - It dances when the next command in that terminal works. Ctrl-C, a closed pipe and Ctrl-Z are no errors.
 - A startled and a dancing parrot, and `parrot.alarm` and `parrot.dance` to preview them.
@@ -20,6 +20,7 @@ It reacts to your terminal.
 
 - Plan version 6: the squawk moves to the finishing touches, as `playSound` only plays MP3.
 - Plan version 7: a typo or a command used wrong is the one case where parrot asks your Claude without a click.
+- Plan version 8: those suggestions come only from your Claude, with nothing guessed beside them.
 
 ## [0.2.0] - 2026-11-22
 

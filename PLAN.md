@@ -1,6 +1,6 @@
 # Parrot: plan
 
-Planversie 7, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
+Planversie 8, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
 
 Een pixel-art-papegaai in de Herdr-app die meekijkt terwijl je werkt. Ziet hij een fout, in je terminal of daarbuiten (de logs van je stack, de CI van je PR, je lokale app in de browser), dan schrikt hij op. Klik je op hem, dan zoekt je eigen Claude uit wat er misging en toont in een spraakwolkje de uitleg, met een fix als commando die je met één klik draait. Je kunt hem ook altijd zelf iets vragen.
 
@@ -231,11 +231,8 @@ Elk stuk is een eigen PR die op zichzelf werkt.
 3. **Schrikken bij terminalfouten, met suggesties bij typfouten:**
    - de zsh-hook, de events-map en opschrikken (de squawk verhuist naar de afwerking: `playSound` speelt alleen MP3, en hier is geen encoder om er een te maken);
    - een verkeerd getypt commando (`tetsts`, `gid`) meldt zsh's `command_not_found_handler` meteen;
-   - parrot stelt dan het commando voor dat je waarschijnlijk bedoelde, in deze volgorde:
-     - eerst de hint van de tool zelf (git, pnpm, npm, cargo);
-     - dan de gok van je Claude (Haiku, een paar seconden);
-     - dan wat hij zelf vindt in je geschiedenis (hele regels, je meest gebruikte commando's en hun tweede woord), de scripts van het project, je aliassen en functies, en een commando op je `PATH` als dat één letter scheelt.
-   - Eén klik zet het commando in je terminal.
+   - je Claude zegt welk commando je waarschijnlijk bedoelde, en alleen je Claude (sinds planversie 8): Haiku, een paar seconden. Hij krijgt de regel, de exitcode, de gemaskeerde output (met de hint van de tool zelf erin), de scripts van het project, je aliassen en functies, en de commando's die je gebruikt. Kan Claude niet antwoorden, dan zegt de melding waarom;
+   - één klik zet het commando in je terminal.
 4. **Uitleg bij fouten:** een klik op een geschrokken papegaai zet de fout in de chat, met de output van dat ene commando, het label Gecontroleerd of Vermoeden en de vaste lijst controles.
 5. **Run en controles:** de fix als één knop (ook met meerdere stappen), het rode label met 3 seconden om te annuleren, knoppen die je naar een pane, bestand of URL brengen, en dansen na een geslaagde fix.
 6. **Afwerking:** de squawk (een MP3), stille modus, piratentaal aan of uit, modelkeuze, README met screenshots in licht en donker.
