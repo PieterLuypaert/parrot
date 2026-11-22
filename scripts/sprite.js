@@ -109,6 +109,10 @@ export const FRAMES = {
   "watch-blink": { eye: "closed", hx: -1, hy: 1 },
   sleep: { eye: "closed", hy: 2 },
   think: { eye: "up", hx: 1 },
+  alarm: { wing: "up", eye: "wide", beak: "open", crest: true, g: [{ k: "excl", x: 3, y: 0 }] },
+  "dance-a": { wing: "up", dx: -1, eye: "happy", beak: "open", g: [{ k: "note", x: 24, y: 1 }] },
+  "dance-b": { wing: "mid", bob: 1, eye: "happy" },
+  "dance-c": { wing: "up", dx: 1, eye: "happy", beak: "open", g: [{ k: "note", x: 26, y: 0 }] },
 };
 
 // The tab bar button's icon: the parrot's head, 16 x 16 cells from the calm frame.

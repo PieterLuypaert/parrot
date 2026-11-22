@@ -1,5 +1,45 @@
 import { describe, expect, test } from "bun:test";
-import { KEEP_MESSAGES, KEEP_PROJECTS, TOOLS, claudeArgs, mask, parseAnswer, projectName, promptFor, tail, withMessage, withSession, withoutChat } from "../mods/parrot/ask.js";
+import {
+  KEEP_MESSAGES, KEEP_PROJECTS, SUGGEST_MODEL, TOOLS, claudeArgs, mask, parseAnswer, parseSuggestions, projectName, promptFor,
+  suggestArgs, suggestPrompt, tail, withMessage, withSession, withoutChat,
+} from "../mods/parrot/ask.js";
+
+describe("asking Claude what you meant", () => {
+  test("asks a fast model with no tools, no session and a JSON shape", () => {
+    const args = suggestArgs("<typed>gitce</typed>");
+    expect(args[args.indexOf("--model") + 1]).toBe(SUGGEST_MODEL);
+    expect(args[args.indexOf("--tools") + 1]).toBe("");
+    expect(args).toContain("--no-session-persistence");
+    expect(args[args.indexOf("--setting-sources") + 1]).toBe("");
+    expect(JSON.parse(args[args.indexOf("--json-schema") + 1]).properties.suggestions.maxItems).toBe(3);
+    expect(args.at(-1)).toBe("<typed>gitce</typed>");
+  });
+
+  test("gives Claude the line, the masked output, the scripts and your habits, never your aliases", () => {
+    const prompt = suggestPrompt({
+      line: "pnpm tset", code: 1, cwd: "/code/shop", output: "Did you mean \"pnpm test\"?",
+      scripts: [{ command: "pnpm test" }], history: ["git status", "git status", "export TOKEN=abc123secret", "pnpm dev"],
+    });
+    expect(prompt.startsWith("<typed")).toBe(true);
+    expect(prompt).toContain('exit_code="1"');
+    expect(prompt).toContain("pnpm test");
+    expect(prompt).toContain("git (2)");
+    expect(prompt).not.toContain("abc123secret");
+    expect(prompt).not.toContain("alias");
+  });
+
+  test("masks a secret in the line you typed and keeps the folder one attribute", () => {
+    const prompt = suggestPrompt({ line: "exprot OPENAI_API_KEY=sk-live-abcdefghijklmnop", code: 127, cwd: '/code/my "odd" dir', output: "" });
+    expect(prompt).not.toContain("abcdefghijklmnop");
+    expect(prompt).toContain("folder=\"/code/my 'odd' dir\"");
+  });
+
+  test("reads Claude's suggestions, or says why there are none", () => {
+    const stdout = JSON.stringify({ is_error: false, structured_output: { suggestions: [{ command: " git commit ", why: "commit typo" }, { command: "", why: "x" }] } });
+    expect(parseSuggestions({ code: 0, stdout, stderr: "" })).toEqual({ suggestions: [{ command: "git commit", why: "commit typo" }] });
+    expect(parseSuggestions({ code: 1, stdout: "", stderr: "Not logged in" }).error).toBe("Claude could not suggest: Not logged in.");
+  });
+});
 
 describe("claudeArgs", () => {
   test("asks for JSON with read-only tools and no MCP servers, the prompt last", () => {

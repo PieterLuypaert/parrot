@@ -100,6 +100,14 @@ describe("mood", () => {
     expect(mood({ terminal: busy, idleFor: 0, preview: "sleep", thinking: true })).toBe("sleep");
   });
 
+  test("startles at an error, thinks above that once you ask, and dances above all", () => {
+    expect(mood({ terminal: shell, idleFor: SLEEP_AFTER, alarm: true })).toBe("alarm");
+    expect(mood({ terminal: shell, idleFor: 0, alarm: true, thinking: true })).toBe("think");
+    expect(mood({ terminal: shell, idleFor: 0, alarm: true, thinking: true, dancing: true })).toBe("dance");
+    expect(frame("alarm", true)).toBe("alarm");
+    expect([0, 1, 2, 3, 4].map((beat) => frame("dance", false, beat))).toEqual(["dance-a", "dance-b", "dance-c", "dance-b", "dance-a"]);
+  });
+
   test("thinks while Claude works on a question, even asleep or watching a command", () => {
     expect(mood({ terminal: busy, idleFor: SLEEP_AFTER, thinking: true })).toBe("think");
     expect(frame("think", true)).toBe("think");

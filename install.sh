@@ -1,7 +1,8 @@
 #!/bin/sh
 # Puts parrot into the Herdr app: links the mod into ~/.config/herdr-app/mods, binds cmd-alt-p (turn
-# the parrot on or off) in keys.json, and adds the on/off button to the tab bar of a layout of your
-# own, just after Chartroom's when that is there.
+# the parrot on or off) and cmd-alt-shift-p (its chat) in keys.json, adds the on/off button to the
+# tab bar of a layout of your own, just after Chartroom's when that is there, and loads the zsh hook
+# from ~/.zshrc so parrot sees your commands fail.
 # Herdr replaces its own layouts (main, terminals, win98) on every start, so for one of those the
 # button goes into a copy, <name>-parrot, which it makes and shows while the app is open. Run it
 # again any time, after a pull too: the mod is linked anew (from whichever parrot checkout runs it),
@@ -117,6 +118,35 @@ own_layout() {
   layout=$copy
 }
 
+# The zsh hook, sourced from ~/.zshrc by one line that names it. A line from another parrot checkout
+# is pointed here instead; ~/.zshrc is kept beside it before it changes.
+hook_mark="# parrot: tells parrot how each command ended"
+add_hook() {
+  rc="${ZDOTDIR:-$HOME}/.zshrc"
+  line="[ -f \"$here/hook.zsh\" ] && source \"$here/hook.zsh\"  $hook_mark"
+  if [ -f "$rc" ] && grep -Fqx "$line" "$rc"; then echo "hook: $rc loads it already"; return; fi
+  kept=""
+  if [ -f "$rc" ]; then cp "$rc" "$rc.backup-$stamp" && kept=" ($rc was kept as $rc.backup-$stamp)"; fi
+  if [ -f "$rc" ] && grep -Fq "$hook_mark" "$rc"; then
+    # Written beside it first, so a failing step leaves ~/.zshrc as it was. grep ends with 1 when
+    # the parrot line was all there was, which is fine.
+    if ! { { grep -Fv "$hook_mark" "$rc.backup-$stamp" >"$rc.tmp" || [ $? -eq 1 ]; } && printf '%s\n' "$line" >>"$rc.tmp"; }; then
+      rm -f "$rc.tmp"
+      fail "could not update the hook line in $rc"
+    fi
+    # Written through, so a ~/.zshrc that links to your dotfiles stays a link.
+    cat "$rc.tmp" >"$rc" && rm -f "$rc.tmp"
+    echo "hook: $rc loads this checkout's hook now$kept"
+  else
+    printf '\n%s\n' "$line" >>"$rc"
+    echo "hook: added to $rc$kept"
+  fi
+  case "${SHELL:-}" in
+    */zsh) echo "hook: terminals opened from now on have it; in one that is open already, run: source $rc" ;;
+    *) echo "hook: your shell is ${SHELL:-unknown}, not zsh, so parrot cannot see your commands fail" >&2 ;;
+  esac
+}
+
 add_button() {
   name=$1 file="$app_home/layouts/$1.json"
   if jq -e '[.. | objects | select(.id? == "parrot-button")] | length > 0' "$file" >/dev/null; then echo "layout: $name has the button already"; return; fi
@@ -132,5 +162,6 @@ own_layout "${1:-$(shown_layout)}"
 link_mod
 add_keys
 add_button "$layout"
+add_hook
 "$herdr" check "$app_home/mods/parrot"
 echo "Parrot in the tab bar, or cmd-alt-p, turns the parrot on or off. It shows while a shell has the focus."
