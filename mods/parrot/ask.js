@@ -136,6 +136,10 @@ export const SUGGEST_LINES = 30;
 export const SUGGEST_SYSTEM = [
   "You fix mistyped and misused shell commands.",
   "From what the person typed, its exit code, its output, the project's scripts and the commands they use, give up to three commands they most likely meant, best first.",
+  "Fix the typo first and keep what they meant to do: correct each misspelled word to the closest real word.",
+  "Typos are swapped, missing, doubled or neighbouring letters, so 'pnmp lnit' is 'pnpm lint' and 'dokcer compsoe' is 'docker compose'.",
+  "When a word is close to one of the project's scripts, that script is the best guess. Only suggest something they did not type when no typo fix makes sense.",
+  "Every suggestion is a version of the line they just typed. The recent lines only show how they work: never suggest a fix for one of those.",
   "Only real commands for their tools and this project, always written out in full: never a shell alias or a shortcut. Keep the arguments that were right. A tool's own suggestion in the output is usually right.",
   "Never suggest a command that deletes data, rewrites history or pushes, unless the person typed one.",
   "Each why is at most six words. If nothing fits, give none.",

@@ -4,6 +4,18 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-22
+
+Sharper guesses, and a chat that keeps up.
+
+### Fixed
+
+- Your Claude fixes a typo first and prefers the project's own scripts, so `pnmp lnit` becomes `pnpm lint` rather than another command.
+- Its suggestions fix only the line you just typed, never an earlier typo from your history.
+- A chat answer comes into view when it lands. After a long one, its question sits at the top, so the answer reads from its start.
+- An alert in the open chat stays in view when your Claude's guesses land, **Ask Parrot** included.
+- The chat follows the shell into another folder: after a `cd` into another project it shows and asks about that one.
+
 ## [0.4.0] - 2026-11-22
 
 Its fixes, one click from your prompt.
