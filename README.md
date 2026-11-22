@@ -2,7 +2,7 @@
 
 A pixel parrot for the [Herdr app](https://herdr.dev) that stands on your work area and watches your shells. Later versions let it spot errors, in the terminal and beyond, and explain them with your own Claude, with the fix as one button. The plan, in Dutch, is in [PLAN.md](PLAN.md), and a sketch of where it is going is in [sketch/moods.html](sketch/moods.html).
 
-**0.3.0, it reacts to your terminal:** it stands without a frame in the top right corner of the panes and watches the terminal in your tab. It sways while all is calm, tilts its head while a command runs, falls asleep after ten quiet minutes, startles when a command fails and dances when the next one works. After a typo it suggests the command you meant. Click it to ask your own Claude anything about the terminal's project. It watches shells, not agents: a tab with only an agent session cannot turn it on, and beside one it keeps watching the terminal while you type to the agent.
+**0.4.0, it reacts to your terminal and hands you its fixes:** it stands without a frame in the top right corner of the panes and watches the terminal in your tab. It sways while all is calm, tilts its head while a command runs, falls asleep after ten quiet minutes, startles when a command fails and dances when the next one works. After a typo it suggests the command you meant. Click it to ask your own Claude anything about the terminal's project, and click a command in its answer to put it on your prompt. It watches shells, not agents: a tab with only an agent session cannot turn it on, and beside one it keeps watching the terminal while you type to the agent.
 
 ## Install
 
@@ -38,7 +38,9 @@ The alert opens beside the parrot, or in the chat while that is open. × dismiss
 
 ## Chat
 
-Ask about the project of the terminal in your tab: how something works, where something lives, why a command failed. The chat opens beside the parrot in its colours, stays put, and moves along when the parrot does. It follows the tab, with one conversation per git project (a `cd` into a subfolder keeps it); follow-up questions continue it, and **New chat** starts that project over.
+Ask about the project of the terminal in your tab: how something works, where something lives, why a command failed. The chat opens beside the parrot in its colours, stays put, and moves along when the parrot does. It follows the tab, with one conversation per git project (a `cd` into a subfolder keeps it); follow-up questions continue it, and **Clear chat**, or typing `/clear`, starts that project over.
+
+Messages are square bubbles in the parrot's colours, with a 2px border like the chat's own frame: yours in its wing blue, its answers in a soft red. Code sits in a block in your terminal's font, and under each shell command is a green **↵ Put on prompt**: one click puts it on the terminal's prompt, not yet run, with that pane focused, so Enter runs it. A command that deletes, overwrites or pushes gets a red link. Other code gets **⧉ Copy**.
 
 Every question goes to your own Claude, on your own subscription, the way Chartroom asks it: `claude -p` in the terminal's folder, with no MCP servers and none of your hooks or plugins. Nothing goes to Claude until you ask. The parrot thinks while it waits; an answer that reads files takes half a minute or so on Sonnet.
 

@@ -1,6 +1,6 @@
 # Parrot: plan
 
-Planversie 8, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
+Planversie 9, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
 
 Een pixel-art-papegaai in de Herdr-app die meekijkt terwijl je werkt. Ziet hij een fout, in je terminal of daarbuiten (de logs van je stack, de CI van je PR, je lokale app in de browser), dan schrikt hij op. Klik je op hem, dan zoekt je eigen Claude uit wat er misging en toont in een spraakwolkje de uitleg, met een fix als commando die je met één klik draait. Je kunt hem ook altijd zelf iets vragen.
 
@@ -233,8 +233,11 @@ Elk stuk is een eigen PR die op zichzelf werkt.
    - een verkeerd getypt commando (`tetsts`, `gid`) meldt zsh's `command_not_found_handler` meteen;
    - je Claude zegt welk commando je waarschijnlijk bedoelde, en alleen je Claude (sinds planversie 8): Haiku, een paar seconden. Hij krijgt de regel, de exitcode, de gemaskeerde output (met de hint van de tool zelf erin), de scripts van het project, je aliassen en functies, en de commando's die je gebruikt. Kan Claude niet antwoorden, dan zegt de melding waarom;
    - één klik zet het commando in je terminal.
-4. **Uitleg bij fouten:** een klik op een geschrokken papegaai zet de fout in de chat, met de output van dat ene commando, het label Gecontroleerd of Vermoeden en de vaste lijst controles.
-5. **Run en controles:** de fix als één knop (ook met meerdere stappen), het rode label met 3 seconden om te annuleren, knoppen die je naar een pane, bestand of URL brengen, en dansen na een geslaagde fix.
+4. **Commando's uit de chat op je prompt** (naar voren gehaald in planversie 9, met "Ask Parrot why" uit 0.3.0 als uitleg bij fouten):
+   - de berichten als chatbubbels in de kleuren van de papegaai: de jouwe blauw, de zijne zacht rood;
+   - vierkant met een rand van 2px, zoals het chatvenster zelf; code in een blok, met onder elk shell-commando een groene link die het op je prompt zet (niet uitgevoerd, de pane krijgt de focus); wat iets weggooit, overschrijft of pusht krijgt een rode link;
+   - "Clear chat" en `/clear` maken de chat van een project leeg.
+5. **Run en controles:** de fix als één knop die hem ook draait (ook met meerdere stappen), het rode label met 3 seconden om te annuleren, het label Gecontroleerd of Vermoeden met de vaste lijst controles, en knoppen die je naar een pane, bestand of URL brengen.
 6. **Afwerking:** de squawk (een MP3), stille modus, piratentaal aan of uit, modelkeuze, README met screenshots in licht en donker.
 
 **Voorlopig buiten scope:** de wachter (draaiende programma's in andere panes, de logs van je stack, "Wat hij zag"), de CI van je PR en de browser-extensie.
@@ -248,7 +251,7 @@ Parrot volgt [semver](https://semver.org). Tot alles uit de bouwvolgorde er is, 
 | 0.1.0 | Papegaai op de kaart |
 | 0.2.0 | Chatten met parrot |
 | 0.3.0 | Schrikken bij terminalfouten, met suggesties bij typfouten |
-| 0.4.0 | Uitleg bij fouten |
+| 0.4.0 | Commando's uit de chat op je prompt |
 | 0.5.0 | Run en controles |
 | 1.0.0 | Afwerking |
 
