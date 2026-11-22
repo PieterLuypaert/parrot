@@ -123,7 +123,7 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 | Een aan/uit-knop in de tabbalk, naast je andere mod-knoppen | Een block met de mod in de rij van de tabbalk, zoals `chartroom-button`; de knop opent of sluit het venster |
 | Half achter de rand zitten, zodat hij geen terminaltekst bedekt | `peek` op een floating block aan een zijkant: alleen zijn kop steekt uit tot je erover hovert |
 | Een pixel-art-papegaai in volle kleur tonen | `image()` met PNG-frames uit de mod-map |
-| Animeren | Frames wisselen met een timer (`cx.sleep`, `timer.after`) voor knipperen, schrikken en dansen. Native motion op `top`, `left` en `opacity` voor wiegen en wippen. `frames()` voor de "..." |
+| Animeren | Native: `loop("top")` voor wiegen, `loop("left")` voor schudden, `frames()` voor de z's en de "...". Een timer alleen voor één knipperframe om de paar seconden en voor korte reeksen (schrikken, dansen, praten) |
 | Weten welke pane focus heeft en wat er draait | `panes()`, `focused()`, `agents()`; `hc ls --json` geeft per terminal het programma op de voorgrond |
 | De tekst van een pane lezen | `hc read <t> --lines N`: scherm plus geschiedenis |
 | Een helper op de achtergrond laten draaien | `hc run --bg --name parrot-watch` start hem als terminal van herdr-core; `hc kill parrot-watch` stopt hem |
@@ -161,12 +161,12 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 - **Eén klik, ook voor wat iets weggooit.** Een fix loopt pas na jouw klik, en nooit meer dan één klik.
   - Commando's die iets weggooien of overschrijven (`rm -rf`, `git reset --hard`, `git push --force`, `kill`, `DROP`, `docker system prune`, ...) krijgen een rood label en lopen pas na 3 seconden.
   - In die tijd annuleert een klik of Esc. Een bevestigingsklik is niet nodig.
-- **Liever zelf Enter geven?** Een instelling zet zo'n commando in je prompt zonder Enter, zodat je het nog ziet en zelf start. `hc keys` kan dat toets per toets; de spike test of dat goed gaat met spaties, `&&` en pipes.
+- **Liever zelf Enter geven?** Een instelling zet zo'n commando in je prompt zonder Enter, zodat je het nog ziet en zelf start. zsh's `print -z` kan dat, ook met `&&` en pipes (getest in de spike); een onzichtbaar alternatief via het klembord testen we in PR 4.
 - **De browser-extensie** volgt alleen localhost en stuurt alleen naar `127.0.0.1`.
 - **Uit is uit:** geen hook-events, geen wachter en geen Claude.
 - **Model:** standaard een snel model voor de eerste uitleg; vervolgvragen op het model dat je kiest, zoals de Ask van chartroom.
 
-## Open vragen voor een spike
+## Vragen voor de spike
 
 1. **Waar hij zit.** Drie kandidaten, in volgorde van voorkeur:
    - een venster zonder kader (`frame: "none"`): staat vrij en is versleepbaar. Is de achtergrond echt doorzichtig rond de sprite, en blijft hij staan als je van tab wisselt?
@@ -180,6 +180,33 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 7. **`hc events`:** meldt het ook nieuwe output, of moet de wachter panes met draaiende programma's om de paar seconden lezen?
 8. **Vals alarm:** hoeveel geven de patronen op echte dev-server- en containerlogs uit je eigen stacks?
 9. **In je prompt zonder Enter:** typt `hc keys` een commando met spaties, `&&` en pipes correct in, toets per toets?
+
+## Uitkomst van de spike
+
+Getest op 22 november 2026 in de Herdr-app, op branch `spike/perch` (niet gemerged).
+
+1. **Waar hij zit:** in een venster zonder kader.
+   - De achtergrond is echt doorzichtig: de papegaai staat los op de terminal, zonder kaartje of schaduw. Floating block en pane-header zijn dus niet meer nodig.
+   - `mod.json` kan het venster zelf beschrijven (`"overlay": { "kind": "window", "frame": "none", "key": "parrot" }`), en `mod.open` opent en sluit het. Eén commando volstaat voor de knop en ⌥⌘P.
+   - `herdr-app do parrot.<commando>` bereikt het venster. Zo kunnen de hook en de wachter hem later laten schrikken.
+   - Een mod achter een symlink herlaadt niet bij opslaan. Het venster sluiten en opnieuw openen laadt de nieuwe versie; `install.sh` linkt opnieuw, zoals bij chartroom.
+2. **Animatie:** Herdr raadt timers voor animatie af, want elke redraw hertekent het hele venster.
+   - Rustig, meekijken en slapen zijn dus native: wiegen met `loop("top")` en de z's als tekst met `frames()`. Knipperen is één frame om de 4 à 7 seconden.
+   - Alleen korte reeksen (schrikken, dansen, praten) lopen met een timer. Alle stemmingen tonen correct.
+3. **De zsh-hook:** werkt.
+   - Hij geeft de juiste exitcode, ook met pipes en `&&`, en geldige JSON, ook met aanhalingstekens en backslashes.
+   - Hij staat als eerste in `precmd_functions`, zodat `$?` nog van het commando is. In PR 2 zet hij zich bij elk commando opnieuw vooraan, voor het geval een andere hook later voorkruipt.
+4. **Snelheid:** `claude -p` met een eigen systeemprompt, alleen Read, Grep en Glob, en zonder MCP-servers geeft een antwoord in zo'n 4,5 s op Haiku en 5 s op Sonnet.
+   - `--bare` valt af: dat gebruikt alleen een API-key, niet je abonnement.
+   - Je eigen `~/.claude/CLAUDE.md` wordt mee geladen: het antwoord begon met "Captain". In PR 3 zoeken we hoe parrot zijn eigen toon houdt.
+5. **De knop en het bewaarde venster:** `mod.open` opent en sluit het venster, en Herdr houdt zelf bij of het open is. De knop leest aan of uit uit gedeelde state, die het venster zet bij openen en sluiten. Een mod weet niet hoe groot het venster is, dus de knop opent hem bij de muisaanwijzer, vlak onder de knop.
+6. **De wachter als achtergrondterminal:** een terminal van `hc run --bg --no-parent --name ...` verschijnt niet in je Herdr-venster.
+7. **`hc events`** meldt alleen welk programma op de voorgrond draait (begin en einde van een commando), geen output. De wachter leest panes met een draaiend programma dus zelf, om de paar seconden.
+8. **Vals alarm:** pas te meten in PR 5, met echte logs.
+9. **In je prompt zonder Enter:**
+   - `hc keys` kan geen `&` of `|` typen; shift wordt genegeerd.
+   - zsh's `print -z` werkt wel: `hc send <t> " print -z -- '<cmd>'"` zet het commando klaar in de prompt, met `&&` en pipes, zonder het te starten. Het nadeel is één extra regel in de scrollback.
+   - In PR 4 testen we klembord plus `terminal.paste`, dat onzichtbaar is.
 
 ## Bouwvolgorde
 
