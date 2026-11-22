@@ -1,6 +1,6 @@
 # Parrot: plan
 
-Planversie 3, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
+Planversie 4, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
 
 Een pixel-art-papegaai in de Herdr-app die meekijkt terwijl je werkt. Ziet hij een fout, in je terminal of daarbuiten (de logs van je stack, de CI van je PR, je lokale app in de browser), dan schrikt hij op. Klik je op hem, dan zoekt je eigen Claude uit wat er misging en toont in een spraakwolkje de uitleg, met een fix als commando die je met één klik draait. Je kunt hem ook altijd zelf iets vragen.
 
@@ -96,6 +96,8 @@ Elk antwoord krijgt een label: **Gecontroleerd**, met de controle die hij draaid
 **Geheimen.** Voor er iets naar Claude gaat, maskeert parrot bekende patronen: API-keys, tokens, JWT's, wachtwoorden in URLs en waarden uit `.env`. Dat vangt niet alles, en daarom gaat er pas iets weg na jouw klik.
 
 ## Bronnen: fouten buiten de terminal
+
+**Voorlopig buiten scope** (sinds planversie 4): de wachter, de logs van je stack, de CI van je PR en de browser-extensie. Parrot blijft bij de terminal en wat je zelf in de chat plakt. Dit stuk blijft staan als idee voor later.
 
 De wachter herkent fouten lokaal, met patronen, zonder Claude. Claude komt pas na je klik.
 
@@ -220,13 +222,17 @@ Getest op 22 november 2026 in de Herdr-app, op branch `spike/perch` (niet gemerg
 Elk stuk is een eigen PR die op zichzelf werkt.
 
 1. **Papegaai op de kaart:** de mod op de plek die de spike kiest, de sprite met rustig, slapen en kijkt mee, de aan/uit-knop in de tabbalk met ⌥⌘P, en `install.sh` die de knop en de toetsen toevoegt zoals bij chartroom.
-2. **Schrikken bij terminalfouten:** de zsh-hook, de events-map, opschrikken en de squawk.
-3. **Uitleg en vragen:** de klik, `hc read` met knippen tussen de promptregels, `claude -p` die alleen leest, het label Gecontroleerd of Vermoeden, de vraagbalk met doorvragen en plakken, het gesprek in het wolkje en in een groter venster, en het maskeren van geheimen.
-4. **Run en controles:** de fix als één knop (ook met meerdere stappen), het rode label met 3 seconden om te annuleren, knoppen die je naar een pane, bestand of URL brengen, de vaste lijst controles, en dansen na een geslaagde fix.
-5. **De wachter:** `parrot-watch`, draaiende programma's in andere panes, de logs van je stack, "Wat hij zag" en context uit git.
-6. **De CI van je PR.**
-7. **De browser-extensie** voor localhost.
-8. **Afwerking:** stille modus, piratentaal aan of uit, modelkeuze, README met screenshots in licht en donker.
+2. **Chatten met parrot:**
+   - een klik op de papegaai opent een chat over het project van de terminal in je tab;
+   - `claude -p` loopt in de map van die terminal en leest alleen;
+   - de laatste output van de terminal gaat mee, met geheimen gemaskeerd;
+   - doorvragen met `--resume`, één gesprek per project, en de papegaai denkt na terwijl je wacht.
+3. **Schrikken bij terminalfouten:** de zsh-hook, de events-map, opschrikken en de squawk.
+4. **Uitleg bij fouten:** een klik op een geschrokken papegaai zet de fout in de chat, met de output van dat ene commando, het label Gecontroleerd of Vermoeden en de vaste lijst controles.
+5. **Run en controles:** de fix als één knop (ook met meerdere stappen), het rode label met 3 seconden om te annuleren, knoppen die je naar een pane, bestand of URL brengen, en dansen na een geslaagde fix.
+6. **Afwerking:** stille modus, piratentaal aan of uit, modelkeuze, README met screenshots in licht en donker.
+
+**Voorlopig buiten scope:** de wachter (draaiende programma's in andere panes, de logs van je stack, "Wat hij zag"), de CI van je PR en de browser-extensie.
 
 ## Versies
 
@@ -235,12 +241,10 @@ Parrot volgt [semver](https://semver.org). Tot alles uit de bouwvolgorde er is, 
 | Versie | Wat erbij komt |
 |---|---|
 | 0.1.0 | Papegaai op de kaart |
-| 0.2.0 | Schrikken bij terminalfouten |
-| 0.3.0 | Uitleg en vragen |
-| 0.4.0 | Run en controles |
-| 0.5.0 | De wachter |
-| 0.6.0 | De CI van je PR |
-| 0.7.0 | De browser-extensie |
+| 0.2.0 | Chatten met parrot |
+| 0.3.0 | Schrikken bij terminalfouten |
+| 0.4.0 | Uitleg bij fouten |
+| 0.5.0 | Run en controles |
 | 1.0.0 | Afwerking |
 
 - **Fixes tussendoor** zijn patch-versies, zoals 0.3.1.

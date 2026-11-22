@@ -281,7 +281,7 @@
 
 <main class="wrap">
   <header class="intro">
-    <p class="eyebrow">Sketch for a Herdr mod · plan 3</p>
+    <p class="eyebrow">Sketch for a Herdr mod · plan 4</p>
     <div class="intro-top">
       <canvas id="logo" role="img" aria-label="The parrot"></canvas>
       <h1 class="wordmark">parrot</h1>
@@ -296,7 +296,7 @@
     </div>
     <div class="scen" role="tablist" aria-label="Flow">
       <button class="scen-btn" type="button" role="tab" data-scen="terminal" aria-selected="true">Error in the terminal</button>
-      <button class="scen-btn" type="button" role="tab" data-scen="outside" aria-selected="false">Error outside the terminal</button>
+      <button class="scen-btn" type="button" role="tab" data-scen="outside" aria-selected="false">Error outside the terminal (later)</button>
       <button class="scen-btn" type="button" role="tab" data-scen="ask" aria-selected="false">A question</button>
     </div>
     <div class="herdr">
@@ -366,7 +366,7 @@
     </div>
   </section>
 
-  <footer class="foot">Plan 3:<code>~/Documents/Projects-privé/parrot/PLAN.md</code> (in Dutch). This is a sketch; nothing runs in Herdr yet.</footer>
+  <footer class="foot">Plan 4: <code>~/Documents/Projects-privé/parrot/PLAN.md</code> (in Dutch). This is a sketch; nothing runs in Herdr yet.</footer>
 </main>
 
 <script>
@@ -761,7 +761,7 @@
     ],
     outside: [
       { k: "o-idle", chip: "Calm", mood: "idle", lines: devLines, dur: 2800, auto: "next",
-        cap: "Your web app runs in the pane, the API in your stack's containers. You click around your app in the browser." },
+        cap: "Out of scope for now, kept as an idea for later. Your web app runs in the pane, the API in your stack's containers. You click around your app in the browser." },
       { k: "o-alarm", chip: "Error in the browser", mood: "alarm", lines: devLines, ext: true, hint: "browser · 500", clickable: true, dur: 3600, auto: "parrot",
         cap: "In the browser a request fails with 500. The extension sees it on localhost and tells the watcher, and the parrot startles. Your terminal shows nothing: the error is in the API container." },
       { k: "o-think", chip: "Thinking", mood: "think", lines: devLines, ext: true, bubble: THINK_O, dur: 2600, auto: "next",
