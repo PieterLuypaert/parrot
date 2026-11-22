@@ -31,11 +31,10 @@ _parrot_precmd() {
   [[ -e $home/off ]] && return 0
   local dir=$home/events
   [[ -d $dir ]] || mkdir -p -- "$dir" 2>/dev/null || return 0
-  # After a command that failed, what you might have meant: your aliases (a:), functions (f:), the
-  # commands on your PATH (c:) and your recent history. Ctrl-C, a closed pipe and Ctrl-Z are no
-  # errors.
+  # After a command that failed, what your Claude needs to tell what you meant: your aliases (a:),
+  # your functions (f:) and your recent history. Ctrl-C, a closed pipe and Ctrl-Z are no errors.
   if (( code != 0 && code != 130 && code != 141 && code != 146 && code != 148 )); then
-    { print -rl -- ${(k)aliases/#/a:} ${${(k)functions:#_*}/#/f:} ${(k)commands/#/c:} } >| "$dir/$$.names" 2>/dev/null
+    { print -rl -- ${(k)aliases/#/a:} ${${(k)functions:#_*}/#/f:} } >| "$dir/$$.names" 2>/dev/null
     fc -ln -300 >| "$dir/$$.history" 2>/dev/null
   fi
   local ms=$(( (EPOCHREALTIME - _parrot_start) * 1000 ))

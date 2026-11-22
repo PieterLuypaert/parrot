@@ -29,13 +29,12 @@ describe("hook.zsh", () => {
     expect(event.cwd.length).toBeGreaterThan(0);
   });
 
-  test("after a command zsh cannot find, also writes what you might have meant", () => {
+  test("after a command zsh cannot find, also writes your functions and aliases for Claude", () => {
     const home = mkdtempSync(join(tmpdir(), "parrot-hook-"));
     run(home, ["gitce status"]);
     const { dir, file, event } = eventOf(home);
     expect(event.code).toBe(127);
     const names = readFileSync(join(dir, file.replace(".json", ".names")), "utf8").split("\n");
-    expect(names).toContain("c:git");
     expect(names).toContain("f:parrot-put");
     expect(names.some((name) => name.startsWith("f:_"))).toBe(false);
   });

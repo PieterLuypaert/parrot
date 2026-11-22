@@ -135,7 +135,7 @@ export const SUGGEST_LINES = 30;
 
 export const SUGGEST_SYSTEM = [
   "You fix mistyped and misused shell commands.",
-  "From what the person typed, its exit code, its output, the project's scripts and the commands they use, give up to three commands they most likely meant, best first.",
+  "From what the person typed, its exit code, its output, the project's scripts, their aliases and functions, and the commands they use, give up to three commands they most likely meant, best first.",
   "Only real commands for their tools and this project. Keep the arguments that were right. A tool's own suggestion in the output is usually right.",
   "Never suggest a command that deletes data, rewrites history or pushes, unless the person typed one.",
   "Each why is at most six words. If nothing fits, give none.",
@@ -169,9 +169,9 @@ export function suggestArgs(prompt, model = SUGGEST_MODEL) {
   ];
 }
 
-// The prompt: the line and how it ended, the masked output, the project's scripts and the commands
-// the person uses most. It starts with a tag, never with a dash.
-export function suggestPrompt({ line, code, cwd, output, scripts = [], history = [] }) {
+// The prompt: the line and how it ended, the masked output, the project's scripts, the person's
+// aliases and functions, and the commands they use most. It starts with a tag, never with a dash.
+export function suggestPrompt({ line, code, cwd, output, scripts = [], history = [], aliases = [], functions = [] }) {
   const used = new Map();
   for (const entry of history) {
     const first = String(entry).trim().split(/\s+/)[0];
@@ -183,12 +183,14 @@ export function suggestPrompt({ line, code, cwd, output, scripts = [], history =
     `<typed exit_code="${code}" folder="${cwd}">${line.trim()}</typed>`,
     `<output>\n${tail(output, SUGGEST_LINES) || "(none)"}\n</output>`,
     `<scripts>${scripts.map((s) => s.command).join(", ") || "(none)"}</scripts>`,
+    `<their_aliases>${aliases.slice(0, 80).join(", ") || "(none)"}</their_aliases>`,
+    `<their_functions>${functions.slice(0, 80).join(", ") || "(none)"}</their_functions>`,
     `<commands_they_use>${top || "(unknown)"}</commands_they_use>`,
     `<recent_lines>\n${recent || "(none)"}\n</recent_lines>`,
   ].join("\n");
 }
 
-// Claude's suggestions, marked as Claude's, or why there are none.
+// Claude's suggestions, or why there are none.
 export function parseSuggestions({ code, stdout, stderr }) {
   let json = null;
   try {
@@ -202,21 +204,11 @@ export function parseSuggestions({ code, stdout, stderr }) {
       suggestions: list
         .filter((s) => typeof s?.command === "string" && s.command.trim())
         .slice(0, 3)
-        .map((s) => ({ command: s.command.trim(), why: `Claude: ${String(s.why ?? "").trim() || "a guess"}` })),
+        .map((s) => ({ command: s.command.trim(), why: String(s.why ?? "").trim() })),
     };
   }
   const why = (json && (json.result || json.subtype)) || firstLine(stderr) || firstLine(stdout) || `claude stopped with exit code ${code}`;
-  return { error: `Claude could not suggest: ${why}` };
-}
-
-// The tool's own hint first, then Claude's guesses, then the rest found here; each command once.
-// Once Claude has answered, a command that is only on your PATH a letter off is left out: Claude
-// read the whole line and does better.
-export function mergeSuggestions(local, fromClaude, max = 4) {
-  const own = local.filter((s) => s.why.endsWith("own suggestion"));
-  const rest = local.filter((s) => !s.why.endsWith("own suggestion") && !(fromClaude.length && s.why === "a command on your PATH"));
-  const seen = new Set();
-  return [...own, ...fromClaude, ...rest].filter((s) => !seen.has(s.command) && seen.add(s.command)).slice(0, max);
+  return { error: `Claude could not suggest: ${why}.` };
 }
 
 // Where claude may live when the app was opened from the Dock, with the short PATH macOS gives it.
