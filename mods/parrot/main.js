@@ -66,9 +66,12 @@ const RED_DARK = "#a81c31";
 const YELLOW = "#f7bd1d";
 const GREEN = "#38a35f";
 const BLUE = "#2d6fe0";
-const BLUE_DARK = "#1c438f";
 const WHITE = "#ffffff";
 const PIXEL_SHADOW = "#00000055";
+// The parrot's chat bubble: its red, soft, for a dark and a light theme, with a thin red edge.
+const PARROT_BUBBLE_DARK = "#3a1c22";
+const PARROT_BUBBLE_LIGHT = "#fdecee";
+const PARROT_EDGE = "#e0303f55";
 
 const chats = () => shared(CHATS) ?? {};
 const busy = () => shared(BUSY) ?? {};
@@ -851,60 +854,50 @@ export default class Parrot extends View {
           .cursor_pointer().hover((s) => s.opacity(0.9)).on_click((_e, cx) => this.send(cx)).child("ASK")));
   }
 
-  // Messages as pixel speech bubbles: yours in blue on the right, the parrot's beside its head on the
-  // left, each with a stepped tail like the chat's own.
+  // Messages as chat bubbles in the parrot's colours: yours in its wing blue on the right, its own
+  // soft red on the left, beside its head.
   message(t, message, i) {
     const id = `parrot-message-${message.id ?? i}`;
     if (message.role === "you") {
-      return h_flex().w_full().justify_end().items_start()
-        .child(div().max_w(320).px(10).py(6).bg(BLUE).text_color(WHITE).border_b_2().border_color(BLUE_DARK).text_size(13)
-          .child(TextView.markdown(id, message.text).selectable(true)))
-        .child(this.bubbleTail(BLUE, "right"));
+      return h_flex().w_full().justify_end()
+        .child(div().max_w(320).px(12).py(7).rounded(16).bg(BLUE).text_color(WHITE).text_size(13)
+          .child(TextView.markdown(id, message.text).selectable(true)));
     }
     if (message.role === "error") {
       return h_flex().w_full().gap(8).items_start().text_size(12.5).text_color(RED)
-        .child(div().px(6).font_bold().bg(RED).text_color(WHITE).child("!"))
+        .child(div().px(6).rounded(4).font_bold().bg(RED).text_color(WHITE).child("!"))
         .child(div().flex_1().min_w(0).child(message.text));
     }
-    return h_flex().w_full().items_start()
-      .child(image(FRAMES + "icon.png").w(16).h(16).flex_none().mr(4))
-      .child(this.bubbleTail(t.border, "left"))
-      .child(v_flex().flex_1().min_w(0).gap(8).px(10).py(8).bg(t.background).border_2().border_color(t.border)
+    const dark = settings()?.dark !== false;
+    return h_flex().w_full().gap(6).items_start()
+      .child(image(FRAMES + "icon.png").w(16).h(16).flex_none().mt(4))
+      .child(v_flex().flex_1().min_w(0).gap(8).px(12).py(9).rounded(16)
+        .bg(dark ? PARROT_BUBBLE_DARK : PARROT_BUBBLE_LIGHT).border_1().border_color(PARROT_EDGE)
         .children(segments(message.text).map((piece, n) => (piece.type === "code"
           ? this.codeBlock(t, piece, `${id}-${n}`)
           : div().w_full().text_size(13).child(TextView.markdown(`${id}-${n}`, piece.text).selectable(true))))));
   }
 
-  // Three steps of pixels pointing from a bubble to whoever speaks.
-  bubbleTail(color, side) {
-    return v_flex().flex_none().pt(6).when(side === "left", (el) => el.items_end()).when(side === "right", (el) => el.items_start())
-      .children([6, 4, 2].map((width) => div().w(width).h(3).bg(color)));
-  }
-
-  // A code block in the terminal's font. Each shell command is a line you click to put it on the
-  // terminal's prompt (not run, its pane focused); one that deletes, overwrites or pushes is red.
-  // Other code can be copied.
+  // A code block in the terminal's font, and under it a link for each command it holds: one click
+  // puts it on the terminal's prompt, not run, with its pane focused. A link for a command that
+  // deletes, overwrites or pushes is red. Other code gets a Copy link.
   codeBlock(t, piece, id) {
     const mono = settings()?.font || "Menlo";
-    const risky = piece.lines.some((line) => line.command && isRisky(line.command));
-    const hasCommands = piece.lines.some((line) => line.command);
+    const commands = piece.lines.map((line) => line.command).filter(Boolean);
     const code = piece.lines.map((line) => line.text).join("\n");
-    return v_flex().w_full().bg(t.chrome).border_2().border_color(risky ? RED : t.border)
-      .child(h_flex().w_full().px(8).py(3).gap(8).items_center().border_b_2().border_color(risky ? RED : t.border)
-        .child(div().flex_1().text_size(10).font_bold().text_color(t.dim).child(hasCommands ? "CLICK A LINE TO PUT IT ON YOUR PROMPT" : (piece.language || "code").toUpperCase()))
-        .child(div().id(`${id}-copy`).px(6).text_size(10).font_bold().text_color(t.muted).cursor_pointer().hover((s) => s.text_color(RED))
-          .tooltip("Copy the whole block")
-          .on_click((_e, cx) => { cx.write_to_clipboard(code); cx.notify(); })
-          .child("COPY")))
-      .children(piece.lines.map((line, n) => {
-        const row = h_flex().id(`${id}-line-${n}`).w_full().px(8).py(3).gap(8).items_start().font_family(mono).text_size(12)
-          .child(div().flex_1().min_w(0).text_color(line.command && isRisky(line.command) ? RED : t.foreground).child(line.text || " "));
-        if (!line.command) return row;
-        return row.cursor_pointer().hover((s) => s.bg(t.hover)).tooltip("Put it on the terminal's prompt: Enter runs it")
-          .on_click((_e, cx) => { this.putFromChat(line.command); cx.notify(); })
-          .child(div().flex_none().px(5).text_size(9.5).font_bold().bg(isRisky(line.command) ? RED : BLUE).text_color(WHITE).child("PUT ON PROMPT"));
-      }))
-      .when(risky, (el) => el.child(div().px(8).py(4).text_size(11).text_color(RED).child("Red lines delete, overwrite or push: read them before you press Enter.")));
+    const link = (key, label, color, tip, action) => div().id(`${id}-${key}`).text_size(12).font_medium().text_color(color).truncate()
+      .cursor_pointer().hover((s) => s.opacity(0.75)).tooltip(tip)
+      .on_click((_e, cx) => { action(cx); cx.notify(); })
+      .child(label);
+    return v_flex().w_full().gap(4)
+      .child(v_flex().w_full().px(10).py(8).rounded(8).bg(t.background).font_family(mono).text_size(12)
+        .children(piece.lines.map((line) => div().w_full().text_color(line.command && isRisky(line.command) ? RED : t.foreground).child(line.text || " "))))
+      .when(commands.length === 0, (el) => el.child(link("copy", "⧉ Copy", t.muted, "Copy this block", (cx) => cx.write_to_clipboard(code))))
+      .children(commands.map((command, n) => {
+        const risky = isRisky(command);
+        const label = `↵ ${commands.length === 1 ? "Put on prompt" : command}${risky ? " · deletes or pushes" : ""}`;
+        return link(`put-${n}`, label, risky ? RED : GREEN, "Put it on the terminal's prompt: Enter runs it", () => this.putFromChat(command));
+      }));
   }
 
   // Into the terminal the chat is about, the one the parrot watches in this tab.
