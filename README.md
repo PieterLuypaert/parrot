@@ -25,8 +25,11 @@ It links the mod, binds `⌥⌘P` and `⌥⇧⌘P`, adds a **Parrot** button to 
 
 The zsh hook tells parrot how each command in your shells ended: the command, its exit code, the folder and how long it took, written under `~/.parrot/events`. It starts no process per command and writes nothing while parrot is off. Parrot reacts only to the tab you look at.
 
-- **A typo** (`gitce`, `tetsts`): the parrot startles and says what you probably meant, found without Claude in your history, the project's scripts (package.json and Makefile), your aliases, functions and PATH. Click one and it goes on your prompt, not yet run, with that pane focused: Enter runs it.
-- **Another failure**: the parrot startles and offers **Ask Parrot why**, which asks your Claude in the chat, with the terminal's output.
+- **A typo** (`gitce`, `pnmp lnit`), or **a command used wrong** (`git statsu`, an unknown option, a missing script): the parrot startles and says what you probably meant. Click one and it goes on your prompt, not yet run, with that pane focused: Enter runs it. The suggestions, best first:
+  - the tool's own hint, read from its output (git's "most similar command", pnpm's and npm's "Did you mean", cargo's);
+  - your Claude's guesses, asked at once on your own subscription with a fast model (Haiku, a few seconds): the line, its exit code, the last 30 lines of output with secrets masked, the project's scripts and the commands you use most go along, with no tools and no session kept;
+  - what parrot finds itself: a whole line you ran before, a command you use with its second word fixed, the project's scripts (package.json and Makefile), your aliases and functions, and a command on your PATH a letter off.
+- **Another failure**, such as a failing test run or build: the parrot startles and offers **Ask Parrot why**, which asks your Claude in the chat, with the terminal's output. Nothing goes to Claude before you click.
 - **The next command in that terminal works**: it dances. Ctrl-C, a closed pipe and Ctrl-Z are no errors.
 
 The alert opens beside the parrot, or in the chat while that is open. × dismisses it.
