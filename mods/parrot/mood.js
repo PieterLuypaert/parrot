@@ -3,7 +3,7 @@
 
 export const SLEEP_AFTER = 10 * 60 * 1000;
 export const PREVIEW_FOR = 10 * 1000;
-export const MOODS = ["calm", "watch", "sleep"];
+export const MOODS = ["calm", "watch", "sleep", "think"];
 export const MARGIN = 16;
 
 const SHELLS = ["zsh", "bash", "fish", "sh", "dash", "nu", "pwsh"];
@@ -57,16 +57,18 @@ export function activity(focus, terminal) {
   return [focus?.terminal ?? "", terminal?.program?.key ?? "", terminal?.program?.name ?? "", terminal?.foreground?.pid ?? ""].join("|");
 }
 
-export function mood({ terminal, idleFor, preview }) {
+export function mood({ terminal, idleFor, preview, thinking }) {
   if (preview) return preview;
+  if (thinking) return "think";
   if (runsCommand(terminal)) return "watch";
   if (idleFor >= SLEEP_AFTER) return "sleep";
   return "calm";
 }
 
-// The picture for a mood, with its eyes shut while it blinks. Asleep, they are shut anyway.
+// The picture for a mood, with its eyes shut while it blinks. Asleep they are shut anyway, and
+// thinking it looks up without blinking.
 export function frame(current, blinking) {
-  if (!blinking || current === "sleep") return current;
+  if (!blinking || current === "sleep" || current === "think") return current;
   return current === "watch" ? "watch-blink" : "blink";
 }
 

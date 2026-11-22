@@ -97,7 +97,12 @@ describe("mood", () => {
   });
 
   test("shows a previewed mood above everything", () => {
-    expect(mood({ terminal: busy, idleFor: 0, preview: "sleep" })).toBe("sleep");
+    expect(mood({ terminal: busy, idleFor: 0, preview: "sleep", thinking: true })).toBe("sleep");
+  });
+
+  test("thinks while Claude works on a question, even asleep or watching a command", () => {
+    expect(mood({ terminal: busy, idleFor: SLEEP_AFTER, thinking: true })).toBe("think");
+    expect(frame("think", true)).toBe("think");
   });
 });
 
