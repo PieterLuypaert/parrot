@@ -4,6 +4,10 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-22
+
+Sharper guesses, and a chat that keeps up.
+
 ### Fixed
 
 - Your Claude fixes a typo first and prefers the project's own scripts, so `pnmp lnit` becomes `pnpm lint` rather than another command.
