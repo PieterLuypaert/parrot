@@ -127,6 +127,98 @@ export function withoutChat(chats, cwd) {
   return without(chats, cwd);
 }
 
+// ---- What you meant, from your Claude ----
+
+export const SUGGEST_MODEL = "haiku";
+export const SUGGEST_TIMEOUT = 60 * 1000;
+export const SUGGEST_LINES = 30;
+
+export const SUGGEST_SYSTEM = [
+  "You fix mistyped and misused shell commands.",
+  "From what the person typed, its exit code, its output, the project's scripts and the commands they use, give up to three commands they most likely meant, best first.",
+  "Only real commands for their tools and this project. Keep the arguments that were right. A tool's own suggestion in the output is usually right.",
+  "Never suggest a command that deletes data, rewrites history or pushes, unless the person typed one.",
+  "Each why is at most six words. If nothing fits, give none.",
+].join(" ");
+
+export const SUGGEST_SCHEMA = {
+  type: "object",
+  properties: {
+    suggestions: {
+      type: "array",
+      maxItems: 3,
+      items: {
+        type: "object",
+        properties: { command: { type: "string" }, why: { type: "string" } },
+        required: ["command", "why"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["suggestions"],
+  additionalProperties: false,
+};
+
+// One quick question on a fast model: no tools, no MCP servers, none of the person's hooks or
+// plugins, no session kept, and the answer in the shape asked for.
+export function suggestArgs(prompt, model = SUGGEST_MODEL) {
+  return [
+    "-p", "--output-format", "json", "--model", model, "--system-prompt", SUGGEST_SYSTEM, "--tools", "",
+    "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence", "--json-schema", JSON.stringify(SUGGEST_SCHEMA),
+    prompt,
+  ];
+}
+
+// The prompt: the line and how it ended, the masked output, the project's scripts and the commands
+// the person uses most. It starts with a tag, never with a dash.
+export function suggestPrompt({ line, code, cwd, output, scripts = [], history = [] }) {
+  const used = new Map();
+  for (const entry of history) {
+    const first = String(entry).trim().split(/\s+/)[0];
+    if (first) used.set(first, (used.get(first) ?? 0) + 1);
+  }
+  const top = [...used].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([name, count]) => `${name} (${count})`).join(", ");
+  const recent = history.slice(-20).map((entry) => mask(entry)).join("\n");
+  return [
+    `<typed exit_code="${code}" folder="${cwd}">${line.trim()}</typed>`,
+    `<output>\n${tail(output, SUGGEST_LINES) || "(none)"}\n</output>`,
+    `<scripts>${scripts.map((s) => s.command).join(", ") || "(none)"}</scripts>`,
+    `<commands_they_use>${top || "(unknown)"}</commands_they_use>`,
+    `<recent_lines>\n${recent || "(none)"}\n</recent_lines>`,
+  ].join("\n");
+}
+
+// Claude's suggestions, marked as Claude's, or why there are none.
+export function parseSuggestions({ code, stdout, stderr }) {
+  let json = null;
+  try {
+    json = JSON.parse(stdout);
+  } catch {
+    json = null;
+  }
+  const list = json && !json.is_error ? json.structured_output?.suggestions : null;
+  if (Array.isArray(list)) {
+    return {
+      suggestions: list
+        .filter((s) => typeof s?.command === "string" && s.command.trim())
+        .slice(0, 3)
+        .map((s) => ({ command: s.command.trim(), why: `Claude: ${String(s.why ?? "").trim() || "a guess"}` })),
+    };
+  }
+  const why = (json && (json.result || json.subtype)) || firstLine(stderr) || firstLine(stdout) || `claude stopped with exit code ${code}`;
+  return { error: `Claude could not suggest: ${why}` };
+}
+
+// The tool's own hint first, then Claude's guesses, then the rest found here; each command once.
+// Once Claude has answered, a command that is only on your PATH a letter off is left out: Claude
+// read the whole line and does better.
+export function mergeSuggestions(local, fromClaude, max = 4) {
+  const own = local.filter((s) => s.why.endsWith("own suggestion"));
+  const rest = local.filter((s) => !s.why.endsWith("own suggestion") && !(fromClaude.length && s.why === "a command on your PATH"));
+  const seen = new Set();
+  return [...own, ...fromClaude, ...rest].filter((s) => !seen.has(s.command) && seen.add(s.command)).slice(0, max);
+}
+
 // Where claude may live when the app was opened from the Dock, with the short PATH macOS gives it.
 export function claudeCandidates(home) {
   return ["claude", `${home}/.local/bin/claude`, "/opt/homebrew/bin/claude", "/usr/local/bin/claude", `${home}/.claude/local/claude`];

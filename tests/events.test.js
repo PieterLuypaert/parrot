@@ -1,5 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { alertFor, headline, isOwn, parseEvent, questionFor, reaction } from "../mods/parrot/events.js";
+import { alertFor, headline, isOwn, parseEvent, questionFor, reaction, wantsClaude } from "../mods/parrot/events.js";
+
+describe("wantsClaude", () => {
+  test("asks after a command zsh could not find, and after a command used wrong", () => {
+    expect(wantsClaude({ code: 127, cmd: "gitce" }, "")).toBe(true);
+    expect(wantsClaude({ code: 1, cmd: "git statsu" }, "$ git statsu\ngit: 'statsu' is not a git command. See 'git --help'.")).toBe(true);
+    expect(wantsClaude({ code: 1, cmd: "pnpm tset" }, '$ pnpm tset\n ERR_PNPM_NO_SCRIPT  Command "tset" not found.')).toBe(true);
+    expect(wantsClaude({ code: 2, cmd: "ls --colr" }, "$ ls --colr\nls: unrecognized option '--colr'\nusage: ls [-@ABC]")).toBe(true);
+  });
+
+  test("leaves a failing test run or build to Ask Parrot why", () => {
+    expect(wantsClaude({ code: 1, cmd: "pnpm test" }, "$ pnpm test\n FAIL  src/orders.test.ts\n 1 failed, 41 passed")).toBe(false);
+    expect(wantsClaude({ code: 1, cmd: "git status" }, "$ git sttaus\nusage: git\n$ git status\nfatal: not a git repository")).toBe(false);
+  });
+});
 
 const event = (code, cmd = "pnpm db:migrate", pid = 10) => ({ pid, code, cmd, cwd: "/code/shop", ms: 5, at: 1 });
 

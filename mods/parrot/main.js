@@ -23,11 +23,11 @@ import {
 } from "herdr";
 import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, samePlace, shows, watched } from "./mood.js";
 import {
-  OUTPUT_LINES, TIMEOUT, claudeArgs, claudeCandidates, mask, messageId, parseAnswer, projectName, promptFor, tail,
-  withMessage, withSession, without, withoutChat,
+  OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, mask, mergeSuggestions, messageId, parseAnswer, parseSuggestions,
+  projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
-import { NOT_FOUND, alertFor, headline, parseEvent, questionFor, reaction } from "./events.js";
-import { scriptsFrom, shellQuote, suggest } from "./suggest.js";
+import { alertFor, headline, parseEvent, questionFor, reaction, wantsClaude } from "./events.js";
+import { hintsFrom, namesFrom, scriptsFrom, shellQuote, suggest } from "./suggest.js";
 
 const FRAMES = "mods/parrot/frames/";
 const SIZE = 96;
@@ -276,11 +276,20 @@ export default class Parrot extends View {
     if (what === "dance") setShared(DANCE_AT, Date.now());
     if (what === "dance" || what === "clear") setShared(ALERT, null);
     if (what !== "alarm") return;
-    const suggestions = event.code === NOT_FOUND ? await this.suggestionsFor(event, dir) : [];
-    setShared(ALERT, alertFor(event, { terminal: terminal.address, suggestions, id: messageId() }));
+    // What is known here comes at once: the tool's own hint, your history, scripts and names. When
+    // the command was mistyped or used wrong, your Claude's guesses follow a few seconds later.
+    const output = await this.readOutput(terminal.address);
+    const { history, names, scripts } = await this.contextOf(event, dir);
+    const local = suggest({ line: event.cmd, hints: hintsFrom(output, event.cmd), history, ...names, scripts });
+    const alert = { ...alertFor(event, { terminal: terminal.address, suggestions: local, id: messageId() }), asking: wantsClaude(event, output) };
+    setShared(ALERT, alert);
+    if (!alert.asking) return;
+    this.askWhatYouMeant(alert, { output, scripts, history, local })
+      .catch((error) => notify({ title: "Parrot could not ask your Claude", body: String(error?.message ?? error), level: "warning" }));
   }
 
-  async suggestionsFor(event, dir) {
+  // Your history and names as the hook wrote them, and the project's scripts.
+  async contextOf(event, dir) {
     const base = `${dir}/${event.pid}`;
     const [names, history, packageJson, makefile, listing] = await Promise.all([
       readTextFile(`${base}.names`), readTextFile(`${base}.history`),
@@ -288,7 +297,32 @@ export default class Parrot extends View {
       exec("ls", ["-a", event.cwd], { timeout: 5000 }),
     ]);
     const lockfiles = listing.code === 0 ? lines(listing.stdout) : [];
-    return suggest({ line: event.cmd, names: lines(names), history: lines(history), scripts: scriptsFrom({ packageJson, lockfiles, makefile }) });
+    return { history: lines(history), names: namesFrom(names), scripts: scriptsFrom({ packageJson, lockfiles, makefile }) };
+  }
+
+  // A quick question to your Claude on a fast model; its guesses join the alert while it is still
+  // the same one.
+  async askWhatYouMeant(alert, { output, scripts, history, local }) {
+    const bin = await this.claudeBin();
+    let result;
+    if (!bin) {
+      result = { error: `Parrot could not find the claude command (${this.claudeMiss}).` };
+    } else {
+      try {
+        const prompt = suggestPrompt({ line: alert.cmd, code: alert.code, cwd: alert.cwd, output, scripts, history });
+        result = parseSuggestions(await exec(bin, suggestArgs(prompt), { cwd: alert.cwd, timeout: SUGGEST_TIMEOUT }));
+      } catch (error) {
+        result = { error: `Claude could not suggest: ${error?.message ?? error}` };
+      }
+    }
+    const now = shared(ALERT);
+    if (now?.id !== alert.id) return;
+    setShared(ALERT, {
+      ...now,
+      asking: false,
+      suggestions: result.error ? now.suggestions : mergeSuggestions(local, result.suggestions),
+      claudeError: result.error ?? null,
+    });
   }
 
   // ⌥⇧⌘P while the parrot is not out: say why nothing opens. The parrot itself opens the chat.
@@ -587,19 +621,24 @@ export default class Parrot extends View {
         .child(div().flex_1().min_w(0).text_size(12.5).font_bold().child(headline(alert)))
         .child(this.chatButton(t, `parrot-alert-dismiss-${where}`, "×", "Dismiss", () => setShared(ALERT, null))))
       .when(alert.suggestions.length > 0, (el) => el.child(div().text_size(12).text_color(t.muted).child("Did you mean")))
-      .children(alert.suggestions.map((suggestion, i) => h_flex().id(`parrot-suggestion-${where}-${i}`).gap(8).px(10).py(6).items_center()
+      .when(Boolean(alert.asking), (el) => el.child(h_flex().gap(8).items_center().text_size(12).text_color(t.muted)
+        .child(image(FRAMES + "think.png").w(24).h(24))
+        .child(div().child("Asking your Claude what you meant"))
+        .child(div().w(18).frames(["", ".", "..", "..."], 380))))
+      .when(Boolean(alert.claudeError), (el) => el.child(div().text_size(11.5).text_color(t.dim).child(alert.claudeError)))
+      .children(alert.suggestions.map((suggestion, i) => v_flex().id(`parrot-suggestion-${where}-${i}`).gap(2).px(10).py(6)
         .border_2().border_color(t.border).hover((s) => s.border_color(RED)).cursor_pointer()
         .tooltip("Put it on the prompt: Enter runs it")
         .on_click((_e, cx) => { putCommand(alert.terminal, suggestion.command); cx.notify(); })
-        .child(div().flex_1().min_w(0).truncate().text_size(13).font_bold().child(suggestion.command))
-        .child(div().flex_none().text_size(11).text_color(t.dim).child(suggestion.why))))
+        .child(div().w_full().text_size(13).font_bold().child(suggestion.command))
+        .child(div().w_full().text_size(11).text_color(t.dim).child(suggestion.why))))
       .child(h_flex().gap(8).items_center()
         .child(div().id(`parrot-alert-ask-${where}`).h(30).px(12).flex().items_center().text_size(12.5).font_bold()
           .bg(RED).text_color(WHITE).border_b_2().border_color(RED_DARK).cursor_pointer().hover((s) => s.opacity(0.9))
           .tooltip("Ask your own Claude, with the terminal's output")
           .on_click((_e, cx) => { askAbout(alert); cx.notify(); })
           .child(ask))
-        .when(alert.suggestions.length === 0 && alert.kind === "not-found", (el) => el.child(div().text_size(11.5).text_color(t.dim).child("Nothing close in your history, scripts or PATH."))));
+        .when(alert.suggestions.length === 0 && alert.kind === "not-found" && !alert.asking, (el) => el.child(div().text_size(11.5).text_color(t.dim).child("No good guess for this one."))));
   }
 
   // ---- The chat ----

@@ -34,6 +34,20 @@ export function reaction(event, alert) {
   return "alarm";
 }
 
+// Output that says the command itself was wrong, rather than what it did: those are worth a
+// suggestion. A test run or a build that fails is not.
+const USAGE = /not a git command|unknown (?:command|subcommand|option|flag|argument)|unrecognized (?:option|argument|command)|invalid (?:option|choice|argument|command)|missing script|command "[^"]+" not found|did you mean|no such (?:command|subcommand)|usage:/i;
+
+// Your Claude is asked what you meant after a command zsh could not find, and after one whose
+// output says it was used wrong.
+export function wantsClaude(event, output) {
+  if (event.code === NOT_FOUND) return true;
+  const typed = String(event.cmd ?? "").trim();
+  const text = String(output ?? "");
+  const at = text.lastIndexOf(typed);
+  return USAGE.test(at >= 0 ? text.slice(at + typed.length) : text);
+}
+
 export function alertFor(event, { terminal, suggestions = [], id }) {
   return {
     id,
