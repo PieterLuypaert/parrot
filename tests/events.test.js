@@ -1,5 +1,37 @@
 import { describe, expect, test } from "bun:test";
-import { alertFor, headline, isOwn, parseEvent, questionFor, reaction, wantsClaude } from "../mods/parrot/events.js";
+import { afterLine, alertFor, headline, isOwn, isPredicate, notFound, parseEvent, questionFor, reaction, wantsClaude } from "../mods/parrot/events.js";
+
+describe("afterLine", () => {
+  test("is the output after the last time the line was typed, however it was spaced", () => {
+    expect(afterLine("$ git  stauts\nold\n$ git stauts\nnew", "git  stauts")).toBe("\nnew");
+    expect(afterLine("no line here", "ls")).toBe("no line here");
+  });
+});
+
+describe("notFound", () => {
+  test("is a command zsh itself could not find", () => {
+    expect(notFound({ code: 127, cmd: "gitce" }, "$ gitce\nzsh: command not found: gitce\n")).toBe(true);
+  });
+
+  test("is not a script that ended with 127 because a program it calls is missing", () => {
+    expect(notFound({ code: 127, cmd: "npm run lint" }, "$ npm run lint\nsh: eslint: command not found\n")).toBe(false);
+    expect(alertFor({ pid: 1, code: 127, cmd: "npm run lint", cwd: "/x" }, { terminal: "t1", id: "a", output: "$ npm run lint\nsh: eslint: command not found" }).kind).toBe("failed");
+  });
+});
+
+describe("isPredicate", () => {
+  test("knows commands whose exit code 1 is an answer", () => {
+    for (const cmd of ["grep TODO src/a.js", "cat a | grep x", "test -f x", "[[ -d x ]]", "diff a b", "git diff --quiet", "make && rg foo"]) {
+      expect(isPredicate(cmd)).toBe(true);
+    }
+    for (const cmd of ["pnpm test", "grep x a | wc -l", "git push"]) expect(isPredicate(cmd)).toBe(false);
+  });
+
+  test("keeps the parrot calm when one says no", () => {
+    expect(reaction({ pid: 1, code: 1, cmd: "grep TODO src/a.js" }, null)).toBeNull();
+    expect(reaction({ pid: 1, code: 2, cmd: "grep -Q x" }, null)).toBe("alarm");
+  });
+});
 
 describe("wantsClaude", () => {
   test("asks after a command zsh could not find, and after a command used wrong", () => {
