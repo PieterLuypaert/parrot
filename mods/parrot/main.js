@@ -19,7 +19,7 @@
 import { View, div, image } from "gpui-kit";
 import { Input, InputState, ScrollHandle, TextView, h_flex, v_flex } from "gpui-base";
 import {
-  checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, setShared,
+  checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, settings, setShared,
   shared, terminals, theme, watchFolder,
 } from "herdr";
 import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shows, watched } from "./mood.js";
@@ -28,7 +28,7 @@ import {
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
 import { alertFor, headline, parseEvent, questionFor, reaction, wantsClaude } from "./events.js";
-import { scriptsFrom, shellQuote } from "./shell.js";
+import { isRisky, scriptsFrom, segments, shellQuote } from "./shell.js";
 
 const FRAMES = "mods/parrot/frames/";
 const SIZE = 96;
@@ -58,6 +58,7 @@ const SETTLE = 1500;
 const CALM = { from: 0, to: 2, period: 2800 };
 const SWAY = { calm: CALM, watch: CALM, think: CALM, sleep: { from: 0, to: 3, period: 4200 } };
 const LOST = "The answer was lost when Herdr closed or parrot reloaded. Ask again.";
+const CLEAR_WORDS = ["/clear", "/new", "/reset"];
 
 // The parrot's own colours (scripts/sprite.js), so the chat looks like it belongs to the bird.
 const RED = "#e0303f";
@@ -100,21 +101,28 @@ const lines = (text) => String(text ?? "").split("\n").map((line) => line.trim()
 // Enter runs it. Only at the prompt: with vim, a REPL or a build running there, the text would go to
 // that program. The alert stays, out of sight, so the parrot dances when the command works.
 function putCommand(alert, command) {
-  const terminal = terminals().find((one) => one.address === alert.terminal);
+  const put = putOnPrompt(alert.terminal, command);
+  if (put === "gone") setShared(ALERT, null);
+  if (put === "put") setShared(ALERT, { ...alert, taken: true });
+}
+
+// Puts a command on that terminal's prompt and focuses its pane: "put", "busy" (something still
+// runs there) or "gone".
+function putOnPrompt(address, command) {
+  const terminal = terminals().find((one) => one.address === address);
   if (!terminal) {
     notify({ title: "That terminal is gone", body: "Parrot cannot put the command there any more.", level: "warning" });
-    setShared(ALERT, null);
-    return;
+    return "gone";
   }
   if (runsCommand(terminal)) {
     notify({ title: "Something still runs in that terminal", body: "Parrot puts the command on the prompt once you are back at it: click again then.", level: "info" });
-    return;
+    return "busy";
   }
-  setShared(ALERT, { ...alert, taken: true });
-  hc(["send", alert.terminal, ` parrot-put ${shellQuote(command)}`])
+  hc(["send", address, ` parrot-put ${shellQuote(command)}`])
     .then((sent) => { if (sent.code !== 0) throw new Error(tail(sent.stderr, 1) || `hc send ended with ${sent.code}`); })
     .catch((error) => notify({ title: "Parrot could not reach the terminal", body: String(error?.message ?? error), level: "error" }));
-  run("pane.focus", { terminal: alert.terminal });
+  run("pane.focus", { terminal: address });
+  return "put";
 }
 
 // The git project a folder belongs to, so one chat covers it; outside git the folder itself.
@@ -747,6 +755,13 @@ export default class Parrot extends View {
       cx.notify();
       return;
     }
+    // /clear (or /new, /reset) clears this project's chat here and goes to nobody.
+    if (CLEAR_WORDS.includes(question.toLowerCase())) {
+      this.input.set_value("");
+      this.clearChat(root);
+      cx.notify();
+      return;
+    }
     if (busy()[root]) return;
     this.cwd = cwd;
     this.problem = null;
@@ -781,7 +796,7 @@ export default class Parrot extends View {
         .child(v_flex().absolute().top(0).left(0).right(SHADOW).bottom(SHADOW).bg(t.popover).text_color(t.foreground)
           .border_2().border_color(RED_DARK)
           .child(this.stripe())
-          .child(this.chatHeader(t, where, root, messages.length > 0 && !thinking))
+          .child(this.chatHeader(t, where, root, messages.length > 0))
           .child(this.chatList(t, messages, thinking, root, alert))
           .child(this.composer(t, thinking))))
       .child(this.tail());
@@ -797,15 +812,20 @@ export default class Parrot extends View {
     return v_flex().w(TAIL).flex_none().pt(34).children([8, 6, 4, 2].map((w) => div().w(w).h(3).bg(RED_DARK)));
   }
 
-  chatHeader(t, where, root, canStartOver) {
+  chatHeader(t, where, root, canClear) {
     return h_flex().h(40).px(12).gap(8).flex_none().items_center().border_b_2().border_color(t.border)
       .child(image(FRAMES + "icon.png").w(16).h(16))
       .child(div().text_size(13).font_bold().text_color(RED).child("PARROT"))
       .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.muted).child(where))
-      .when(canStartOver, (el) => el.child(this.chatButton(t, "parrot-chat-new", "New chat", "Start over: forget this project's conversation", () => {
-        setShared(CHATS, withoutChat(chats(), root));
-      })))
+      .when(canClear, (el) => el.child(this.chatButton(t, "parrot-chat-clear", "Clear chat", "Clear this project's chat and start a new conversation (or type /clear)", () => this.clearChat(root))))
       .child(this.chatButton(t, "parrot-chat-close", "×", "Close (Esc)", () => closeOverlay(props()?.overlay)));
+  }
+
+  // The project's messages go, and its next question starts a new conversation with Claude. An
+  // answer still on its way lands in the cleared chat.
+  clearChat(root) {
+    if (root) setShared(CHATS, withoutChat(chats(), root));
+    this.problem = null;
   }
 
   // The conversation, with an alert as its latest item: it scrolls with the rest, so nothing is
@@ -831,21 +851,70 @@ export default class Parrot extends View {
           .cursor_pointer().hover((s) => s.opacity(0.9)).on_click((_e, cx) => this.send(cx)).child("ASK")));
   }
 
+  // Messages as pixel speech bubbles: yours in blue on the right, the parrot's beside its head on the
+  // left, each with a stepped tail like the chat's own.
   message(t, message, i) {
     const id = `parrot-message-${message.id ?? i}`;
     if (message.role === "you") {
-      return h_flex().w_full().justify_end().child(div().max_w(330).px(10).py(6).bg(BLUE).text_color(WHITE).border_b_2().border_color(BLUE_DARK).text_size(13)
-        .child(TextView.markdown(id, message.text).selectable(true)));
+      return h_flex().w_full().justify_end().items_start()
+        .child(div().max_w(320).px(10).py(6).bg(BLUE).text_color(WHITE).border_b_2().border_color(BLUE_DARK).text_size(13)
+          .child(TextView.markdown(id, message.text).selectable(true)))
+        .child(this.bubbleTail(BLUE, "right"));
     }
     if (message.role === "error") {
       return h_flex().w_full().gap(8).items_start().text_size(12.5).text_color(RED)
         .child(div().px(6).font_bold().bg(RED).text_color(WHITE).child("!"))
         .child(div().flex_1().min_w(0).child(message.text));
     }
-    return h_flex().w_full().gap(8).items_start()
-      .child(image(FRAMES + "icon.png").w(16).h(16).flex_none())
-      .child(div().flex_1().min_w(0).px(10).py(6).border_2().border_color(t.border).text_size(13)
-        .child(TextView.markdown(id, message.text).selectable(true)));
+    return h_flex().w_full().items_start()
+      .child(image(FRAMES + "icon.png").w(16).h(16).flex_none().mr(4))
+      .child(this.bubbleTail(t.border, "left"))
+      .child(v_flex().flex_1().min_w(0).gap(8).px(10).py(8).bg(t.background).border_2().border_color(t.border)
+        .children(segments(message.text).map((piece, n) => (piece.type === "code"
+          ? this.codeBlock(t, piece, `${id}-${n}`)
+          : div().w_full().text_size(13).child(TextView.markdown(`${id}-${n}`, piece.text).selectable(true))))));
+  }
+
+  // Three steps of pixels pointing from a bubble to whoever speaks.
+  bubbleTail(color, side) {
+    return v_flex().flex_none().pt(6).when(side === "left", (el) => el.items_end()).when(side === "right", (el) => el.items_start())
+      .children([6, 4, 2].map((width) => div().w(width).h(3).bg(color)));
+  }
+
+  // A code block in the terminal's font. Each shell command is a line you click to put it on the
+  // terminal's prompt (not run, its pane focused); one that deletes, overwrites or pushes is red.
+  // Other code can be copied.
+  codeBlock(t, piece, id) {
+    const mono = settings()?.font || "Menlo";
+    const risky = piece.lines.some((line) => line.command && isRisky(line.command));
+    const hasCommands = piece.lines.some((line) => line.command);
+    const code = piece.lines.map((line) => line.text).join("\n");
+    return v_flex().w_full().bg(t.chrome).border_2().border_color(risky ? RED : t.border)
+      .child(h_flex().w_full().px(8).py(3).gap(8).items_center().border_b_2().border_color(risky ? RED : t.border)
+        .child(div().flex_1().text_size(10).font_bold().text_color(t.dim).child(hasCommands ? "CLICK A LINE TO PUT IT ON YOUR PROMPT" : (piece.language || "code").toUpperCase()))
+        .child(div().id(`${id}-copy`).px(6).text_size(10).font_bold().text_color(t.muted).cursor_pointer().hover((s) => s.text_color(RED))
+          .tooltip("Copy the whole block")
+          .on_click((_e, cx) => { cx.write_to_clipboard(code); cx.notify(); })
+          .child("COPY")))
+      .children(piece.lines.map((line, n) => {
+        const row = h_flex().id(`${id}-line-${n}`).w_full().px(8).py(3).gap(8).items_start().font_family(mono).text_size(12)
+          .child(div().flex_1().min_w(0).text_color(line.command && isRisky(line.command) ? RED : t.foreground).child(line.text || " "));
+        if (!line.command) return row;
+        return row.cursor_pointer().hover((s) => s.bg(t.hover)).tooltip("Put it on the terminal's prompt: Enter runs it")
+          .on_click((_e, cx) => { this.putFromChat(line.command); cx.notify(); })
+          .child(div().flex_none().px(5).text_size(9.5).font_bold().bg(isRisky(line.command) ? RED : BLUE).text_color(WHITE).child("PUT ON PROMPT"));
+      }))
+      .when(risky, (el) => el.child(div().px(8).py(4).text_size(11).text_color(RED).child("Red lines delete, overwrite or push: read them before you press Enter.")));
+  }
+
+  // Into the terminal the chat is about, the one the parrot watches in this tab.
+  putFromChat(command) {
+    const { terminal } = this.place();
+    if (!terminal) {
+      notify({ title: "No terminal in this tab", body: "Open a terminal pane here, then click the command again.", level: "info" });
+      return;
+    }
+    putOnPrompt(terminal.address, command);
   }
 
   emptyChat(t, root) {
