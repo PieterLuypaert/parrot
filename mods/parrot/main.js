@@ -17,12 +17,17 @@
 
 import { View, div, image } from "gpui-kit";
 import { Input, InputState, ScrollHandle, TextView, h_flex, v_flex } from "gpui-base";
-import { checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, setShared, shared, terminals, theme } from "herdr";
-import { MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, samePlace, shows, watched } from "./mood.js";
+import {
+  checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, setShared,
+  shared, terminals, theme, watchFolder,
+} from "herdr";
+import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, samePlace, shows, watched } from "./mood.js";
 import {
   OUTPUT_LINES, TIMEOUT, claudeArgs, claudeCandidates, mask, messageId, parseAnswer, projectName, promptFor, tail,
   withMessage, withSession, without, withoutChat,
 } from "./ask.js";
+import { NOT_FOUND, alertFor, headline, parseEvent, questionFor, reaction } from "./events.js";
+import { scriptsFrom, shellQuote, suggest } from "./suggest.js";
 
 const FRAMES = "mods/parrot/frames/";
 const SIZE = 96;
@@ -42,6 +47,11 @@ const CHAT = "parrot.chat";
 const CHATS = "parrot.chats";
 const ASK = "parrot.ask";
 const BUSY = "parrot.busy";
+const ALERT = "parrot.alert";
+const ALERT_WINDOW = "parrot.alertWindow";
+const DANCE_AT = "parrot.dance";
+const ALERT_W = 380;
+const SHAKE_FOR = 700;
 const SETTLE = 1500;
 const CALM = { from: 0, to: 2, period: 2800 };
 const SWAY = { calm: CALM, watch: CALM, think: CALM, sleep: { from: 0, to: 3, period: 4200 } };
@@ -66,12 +76,62 @@ function openChat(at) {
   openOverlay({ mod: "parrot", props: { chat: true }, kind: "window", frame: "none", width: CHAT_W, height: CHAT_H, at: { x: Math.max(0, at.x + 10 - CHAT_W), y: at.y } });
 }
 
+// What the parrot says about an error opens there too, as big as what it says.
+function openAlert(at) {
+  openOverlay({ mod: "parrot", props: { alert: true }, kind: "window", frame: "none", width: ALERT_W, at: { x: Math.max(0, at.x + 10 - ALERT_W), y: at.y } });
+}
+
+const parrotHome = () => `${home()}/.parrot`;
+const lines = (text) => String(text ?? "").split("\n").map((line) => line.trim()).filter(Boolean);
+
+// A suggestion goes on the terminal's prompt without running, and that pane gets the focus, so
+// Enter runs it.
+function putCommand(address, command) {
+  setShared(ALERT, null);
+  hc(["send", address, ` parrot-put ${shellQuote(command)}`])
+    .then((sent) => { if (sent.code !== 0) throw new Error(tail(sent.stderr, 1) || `hc send ended with ${sent.code}`); })
+    .catch((error) => notify({ title: "Parrot could not reach the terminal", body: String(error?.message ?? error), level: "error" }));
+  run("pane.focus", { terminal: address });
+}
+
+// The git project a folder belongs to, so one chat covers it; outside git the folder itself.
+async function projectRoot(cwd) {
+  try {
+    const top = await exec("git", ["rev-parse", "--show-toplevel"], { cwd, timeout: 5000 });
+    return top.code === 0 && top.stdout.trim() ? top.stdout.trim() : cwd;
+  } catch (error) {
+    notify({ title: "Parrot could not ask git where the project starts", body: `${error?.message ?? error}: this folder is the project.`, level: "warning" });
+    return cwd;
+  }
+}
+
+// "Ask Parrot" on an alert: the chat opens and the question goes to Claude with the terminal's
+// output, as if you had typed it.
+async function askAbout(alert) {
+  setShared(ALERT, null);
+  if (!shared(CHAT)) openChat(shared(CORNER) ?? { x: CHAT_W, y: 80 });
+  const root = await projectRoot(alert.cwd);
+  if (busy()[root]) {
+    notify({ title: "Parrot is still answering", body: "Ask again when the answer is in.", level: "info" });
+    return;
+  }
+  const question = questionFor(alert);
+  const branch = panes().find((pane) => pane.terminal === alert.terminal)?.branch ?? null;
+  setShared(CHATS, withMessage(chats(), root, { role: "you", text: question, id: messageId() }));
+  setShared(BUSY, { ...busy(), [root]: true });
+  setShared(ASK, { id: messageId(), root, cwd: alert.cwd, address: alert.terminal, branch, question });
+}
+
 export default class Parrot extends View {
   init(_props, cx) {
     const p = props() ?? {};
     if (p.measure) return;
     if (p.button) return this.initButton(cx);
     if (p.chat) return this.initChat(cx);
+    if (p.alert) {
+      if (!checking()) setShared(ALERT_WINDOW, p.overlay ?? null);
+      return;
+    }
     // Only the button opens the parrot. A window Herdr kept from an older version, or one opened
     // another way, closes at once.
     if (!p.perch) {
@@ -110,6 +170,10 @@ export default class Parrot extends View {
       if (shared(CHAT) === p.overlay) setShared(CHAT, null);
       return;
     }
+    if (p.alert) {
+      if (shared(ALERT_WINDOW) === p.overlay) setShared(ALERT_WINDOW, null);
+      return;
+    }
     if (!p.perch || p.token !== shared(PERCH)) return;
     setShared(OPEN, false);
     setShared(OVERLAY, null);
@@ -124,8 +188,13 @@ export default class Parrot extends View {
     this.since = Date.now();
     this.pending = 0;
     this.lastAsk = shared(ASK)?.id ?? null;
+    this.alertShown = null;
     if (checking()) return;
-    for (const id of [shared(CHAT), shared(OVERLAY)]) if (id) closeOverlay(id);
+    for (const id of [shared(CHAT), shared(OVERLAY), shared(ALERT_WINDOW)]) if (id) closeOverlay(id);
+    setShared(ALERT, null);
+    setShared(ALERT_WINDOW, null);
+    this.markOff(shared(ON) !== true);
+    this.watchEvents(cx);
     let all = chats();
     for (const root of Object.keys(busy())) all = withMessage(all, root, { role: "error", text: LOST, id: messageId() });
     setShared(CHATS, all);
@@ -155,6 +224,71 @@ export default class Parrot extends View {
       return;
     }
     setShared(ON, !on);
+    if (on) setShared(ALERT, null);
+    this.markOff(on);
+  }
+
+  // While parrot is off, ~/.parrot/off tells the zsh hook to write nothing.
+  markOff(off) {
+    const dir = parrotHome();
+    const change = off ? exec("sh", ["-c", 'mkdir -p "$1" && touch "$1/off"', "sh", dir]) : exec("rm", ["-f", `${dir}/off`]);
+    change
+      .then((done) => { if (done.code !== 0) throw new Error(tail(done.stderr, 1) || `ended with ${done.code}`); })
+      .catch((error) => notify({ title: "Parrot could not tell the zsh hook", body: String(error?.message ?? error), level: "error" }));
+  }
+
+  // The zsh hook writes how each command ended under ~/.parrot/events; the button follows it.
+  watchEvents(cx) {
+    const dir = `${parrotHome()}/events`;
+    this.seen = {};
+    cx.spawn(async (cx) => {
+      const made = await exec("mkdir", ["-p", dir]);
+      if (made.code !== 0) {
+        notify({ title: "Parrot cannot follow your terminals", body: `It could not make ${dir}: ${tail(made.stderr, 1)}`, level: "error" });
+        return;
+      }
+      for (;;) {
+        const changed = await watchFolder(dir);
+        // cx first: after a reload, the old build's loop ends here instead of reacting twice.
+        cx.notify();
+        for (const path of changed) {
+          if (!path.endsWith(".json")) continue;
+          try {
+            await this.onEvent(path, dir);
+          } catch (error) {
+            notify({ title: "Parrot missed a command", body: String(error?.message ?? error), level: "warning" });
+          }
+        }
+      }
+    });
+  }
+
+  // A command ended in a terminal: startle, dance or calm down, for the tab you look at only.
+  async onEvent(path, dir) {
+    if (shared(ON) !== true) return;
+    const event = parseEvent(await readTextFile(path));
+    if (!event || event.at * 1000 < this.since || event.at <= (this.seen[path] ?? 0)) return;
+    this.seen[path] = event.at;
+    const terminal = terminals().find((one) => one.pid === event.pid);
+    const tab = terminal && panes().find((pane) => pane.terminal === terminal.address)?.tab;
+    if (!tab || tab !== focused()?.tab) return;
+    const what = reaction(event, shared(ALERT));
+    if (what === "dance") setShared(DANCE_AT, Date.now());
+    if (what === "dance" || what === "clear") setShared(ALERT, null);
+    if (what !== "alarm") return;
+    const suggestions = event.code === NOT_FOUND ? await this.suggestionsFor(event, dir) : [];
+    setShared(ALERT, alertFor(event, { terminal: terminal.address, suggestions, id: messageId() }));
+  }
+
+  async suggestionsFor(event, dir) {
+    const base = `${dir}/${event.pid}`;
+    const [names, history, packageJson, makefile, listing] = await Promise.all([
+      readTextFile(`${base}.names`), readTextFile(`${base}.history`),
+      readTextFile(`${event.cwd}/package.json`), readTextFile(`${event.cwd}/Makefile`),
+      exec("ls", ["-a", event.cwd], { timeout: 5000 }),
+    ]);
+    const lockfiles = listing.code === 0 ? lines(listing.stdout) : [];
+    return suggest({ line: event.cmd, names: lines(names), history: lines(history), scripts: scriptsFrom({ packageJson, lockfiles, makefile }) });
   }
 
   // ⌥⇧⌘P while the parrot is not out: say why nothing opens. The parrot itself opens the chat.
@@ -178,14 +312,19 @@ export default class Parrot extends View {
     const width = shared(WIDTH);
     const at = width && width.at >= this.since ? corner(width.points, layout(), BOX) : null;
     const moved = Boolean(open && at && !samePlace(at, shared(CORNER)));
-    if (want === open && !moved) { this.pending = 0; return; }
+    if (want === open && !moved) {
+      this.pending = 0;
+      if (open) this.syncAlert();
+      return;
+    }
     if (Date.now() - this.pending < SETTLE) return;
     let chatWasOpen = false;
     if (open) {
       this.pending = Date.now();
       const chat = shared(CHAT);
       chatWasOpen = Boolean(chat);
-      for (const id of [chat, shared(OVERLAY)]) if (id) closeOverlay(id);
+      for (const id of [chat, shared(OVERLAY), shared(ALERT_WINDOW)]) if (id) closeOverlay(id);
+      this.alertShown = null;
       if (!want) return;
     }
     if (!at) return;
@@ -196,6 +335,22 @@ export default class Parrot extends View {
     openOverlay({ mod: "parrot", props: { perch: true, token }, kind: "window", frame: "none", at });
     // A chat that was open moves along with its parrot; the conversation is kept in shared state.
     if (chatWasOpen) openChat(at);
+  }
+
+  // What the parrot says about an error opens beside it while there is an alert and the chat is
+  // closed; an open chat shows the alert itself.
+  syncAlert() {
+    const alert = shared(ALERT);
+    const win = shared(ALERT_WINDOW);
+    const chatOpen = Boolean(shared(CHAT));
+    if (win && (!alert || chatOpen)) {
+      closeOverlay(win);
+      this.alertShown = null;
+      return;
+    }
+    if (!alert || win || chatOpen || this.alertShown === alert.id) return;
+    this.alertShown = alert.id;
+    openAlert(shared(CORNER) ?? { x: ALERT_W, y: 80 });
   }
 
   // The chat hands its question over in shared state; the button asks it, so the answer lands in
@@ -309,7 +464,37 @@ export default class Parrot extends View {
       this.lastKey = key;
       this.lastActive = Date.now();
     }
-    return mood({ terminal, idleFor: Date.now() - this.lastActive, preview: this.preview, thinking: Object.keys(busy()).length > 0 });
+    return mood({
+      terminal,
+      idleFor: Date.now() - this.lastActive,
+      preview: this.preview,
+      thinking: Object.keys(busy()).length > 0,
+      alarm: Boolean(shared(ALERT)),
+      dancing: Date.now() - (shared(DANCE_AT) ?? 0) < DANCE_BEAT * DANCE_BEATS,
+    });
+  }
+
+  // Startled, it shakes once for each new alert; dancing, it steps by a short timer that stops by
+  // itself. The other moods move natively.
+  animate(cx) {
+    const alert = shared(ALERT);
+    if (alert && alert.id !== this.alertSeen) {
+      this.alertSeen = alert.id;
+      this.shaking = true;
+      cx.timer.after(SHAKE_FOR, (cx) => { this.shaking = false; cx.notify(); });
+    }
+    if (!alert) this.alertSeen = null;
+    if (this.shown !== "dance" || this.beatTask) return;
+    this.beat = 0;
+    this.beatTask = cx.timer.every(DANCE_BEAT, (cx) => {
+      this.beat += 1;
+      if (this.currentMood() !== "dance") {
+        this.beatTask.cancel();
+        this.beatTask = null;
+        this.beat = 0;
+      }
+      cx.notify();
+    });
   }
 
   // The chat opens left of the parrot and moves along when the parrot does.
@@ -323,7 +508,7 @@ export default class Parrot extends View {
     openChat(shared(CORNER) ?? { x: CHAT_W, y: 80 });
   }
 
-  perch(t) {
+  perch(t, cx) {
     if (props()?.token !== shared(PERCH)) {
       if (!this.closing && !checking()) {
         this.closing = true;
@@ -332,10 +517,17 @@ export default class Parrot extends View {
       return div();
     }
     this.shown = this.currentMood();
-    const picture = FRAMES + frame(this.shown, this.blinking) + ".png";
+    if (!checking()) this.animate(cx);
+    const picture = FRAMES + frame(this.shown, this.blinking, this.beat ?? 0) + ".png";
     const above = { sleep: ["z", "z z", "z z Z", ""], think: [".", "..", "...", ""] }[this.shown];
+    const alert = shared(ALERT);
+    const tip = alert ? `${headline(alert)}: click for help` : this.shown === "sleep" ? "Parrot is asleep: click to wake it and ask something" : "Ask Parrot about this project (⌥⇧⌘P)";
+    let bird = div().relative().top(0).left(0).child(image(picture).w(SIZE).h(SIZE));
+    if (this.shaking) bird = bird.loop("left", { from: -2, to: 2, period: 120 });
+    let perch = div().relative().top(0).child(bird);
+    if (SWAY[this.shown]) perch = perch.loop("top", SWAY[this.shown]);
     return div().id("parrot").relative().w(BOX).h(BOX).cursor_pointer()
-      .tooltip(this.shown === "sleep" ? "Parrot is asleep: click to wake it and ask something" : "Ask Parrot about this project (⌥⇧⌘P)")
+      .tooltip(tip)
       .on_mouse_down("left", stop)
       .on_click((_e, cx) => {
         this.lastActive = Date.now();
@@ -343,7 +535,7 @@ export default class Parrot extends View {
         this.toggleChat();
         cx.notify();
       })
-      .child(div().relative().top(0).loop("top", SWAY[this.shown]).child(image(picture).w(SIZE).h(SIZE)))
+      .child(perch)
       .when(Boolean(above), (el) => el.child(
         div().absolute().top(2).right(4).text_size(13).font_semibold().text_color(t.muted).frames(above, this.shown === "think" ? 380 : 700),
       ));
@@ -363,11 +555,51 @@ export default class Parrot extends View {
     const p = props() ?? {};
     if (p.measure) return this.measure();
     if (p.chat) return this.chat(t, cx);
+    if (p.alert) return this.alertWindow(t);
     if (p.button) {
       this.sync(cx);
       return this.button(t);
     }
-    return this.perch(t);
+    return this.perch(t, cx);
+  }
+
+  // ---- What the parrot says about an error ----
+
+  // Beside the parrot, in the chat's pixel look, as big as what it says. It never drags.
+  alertWindow(t) {
+    const alert = shared(ALERT);
+    if (!alert) return div();
+    return h_flex().id("parrot-alert").w_full().items_start().on_mouse_down("left", stop)
+      .child(div().relative().flex_1().min_w(0).pr(SHADOW).pb(SHADOW)
+        .child(div().absolute().top(SHADOW).left(SHADOW).right(0).bottom(0).bg(PIXEL_SHADOW))
+        .child(v_flex().relative().bg(t.popover).text_color(t.foreground).border_2().border_color(RED_DARK)
+          .child(this.stripe())
+          .child(div().p(12).child(this.alertCard(t, alert, "window")))))
+      .child(this.tail());
+  }
+
+  // The error in a line, the commands you probably meant, and Ask Parrot.
+  alertCard(t, alert, where) {
+    const ask = alert.kind === "failed" ? "Ask Parrot why" : "Ask Parrot";
+    return v_flex().gap(8)
+      .child(h_flex().gap(8).items_start()
+        .child(div().px(6).font_bold().bg(RED).text_color(WHITE).child("!"))
+        .child(div().flex_1().min_w(0).text_size(12.5).font_bold().child(headline(alert)))
+        .child(this.chatButton(t, `parrot-alert-dismiss-${where}`, "×", "Dismiss", () => setShared(ALERT, null))))
+      .when(alert.suggestions.length > 0, (el) => el.child(div().text_size(12).text_color(t.muted).child("Did you mean")))
+      .children(alert.suggestions.map((suggestion, i) => h_flex().id(`parrot-suggestion-${where}-${i}`).gap(8).px(10).py(6).items_center()
+        .border_2().border_color(t.border).hover((s) => s.border_color(RED)).cursor_pointer()
+        .tooltip("Put it on the prompt: Enter runs it")
+        .on_click((_e, cx) => { putCommand(alert.terminal, suggestion.command); cx.notify(); })
+        .child(div().flex_1().min_w(0).truncate().text_size(13).font_bold().child(suggestion.command))
+        .child(div().flex_none().text_size(11).text_color(t.dim).child(suggestion.why))))
+      .child(h_flex().gap(8).items_center()
+        .child(div().id(`parrot-alert-ask-${where}`).h(30).px(12).flex().items_center().text_size(12.5).font_bold()
+          .bg(RED).text_color(WHITE).border_b_2().border_color(RED_DARK).cursor_pointer().hover((s) => s.opacity(0.9))
+          .tooltip("Ask your own Claude, with the terminal's output")
+          .on_click((_e, cx) => { askAbout(alert); cx.notify(); })
+          .child(ask))
+        .when(alert.suggestions.length === 0 && alert.kind === "not-found", (el) => el.child(div().text_size(11.5).text_color(t.dim).child("Nothing close in your history, scripts or PATH."))));
   }
 
   // ---- The chat ----
@@ -456,6 +688,8 @@ export default class Parrot extends View {
           .child(this.stripe())
           .child(this.chatHeader(t, where, root, messages.length > 0 && !thinking))
           .child(this.chatList(t, messages, thinking, root))
+          .when(Boolean(shared(ALERT)), (el) => el.child(div().flex_none().px(12).py(10).border_t_2().border_color(t.border)
+            .child(this.alertCard(t, shared(ALERT), "chat"))))
           .child(this.composer(t, thinking))))
       .child(this.tail());
   }
