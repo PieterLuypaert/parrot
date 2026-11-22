@@ -3,7 +3,7 @@
 
 export const SLEEP_AFTER = 10 * 60 * 1000;
 export const PREVIEW_FOR = 10 * 1000;
-export const MOODS = ["calm", "watch", "sleep"];
+export const MOODS = ["calm", "watch", "sleep", "think"];
 export const MARGIN = 16;
 
 const SHELLS = ["zsh", "bash", "fish", "sh", "dash", "nu", "pwsh"];
@@ -57,16 +57,18 @@ export function activity(focus, terminal) {
   return [focus?.terminal ?? "", terminal?.program?.key ?? "", terminal?.program?.name ?? "", terminal?.foreground?.pid ?? ""].join("|");
 }
 
-export function mood({ terminal, idleFor, preview }) {
+export function mood({ terminal, idleFor, preview, thinking }) {
   if (preview) return preview;
+  if (thinking) return "think";
   if (runsCommand(terminal)) return "watch";
   if (idleFor >= SLEEP_AFTER) return "sleep";
   return "calm";
 }
 
-// The picture for a mood, with its eyes shut while it blinks. Asleep, they are shut anyway.
+// The picture for a mood, with its eyes shut while it blinks. Asleep they are shut anyway, and
+// thinking it looks up without blinking.
 export function frame(current, blinking) {
-  if (!blinking || current === "sleep") return current;
+  if (!blinking || current === "sleep" || current === "think") return current;
   return current === "watch" ? "watch-blink" : "blink";
 }
 
@@ -87,11 +89,57 @@ export function find(node, test) {
 
 // Where the parrot lands in a window `width` points wide: in the top right corner, under the tab
 // bar and the panes' title bars, so it covers neither the tabs nor a pane's buttons.
+// The panes' title bar is set on the block that holds them (content.pane.header), or on a node.
+function titleBar(node) {
+  const header = node.content?.pane?.header ?? node.header;
+  return header && header.position !== "bottom" ? header : null;
+}
+
+// The block that holds the tab's panes: its content names the tab (content.tab) or how panes look.
+function holdsPanes(node) {
+  const content = node?.content;
+  return Boolean(content && typeof content === "object" && ("tab" in content || content.pane));
+}
+
+// The nodes from the root down to the first one `test` accepts.
+function pathTo(node, test, trail = []) {
+  if (!node || typeof node !== "object") return null;
+  const here = [...trail, node];
+  if (test(node)) return here;
+  for (const child of node.children ?? []) {
+    const path = pathTo(child, test, here);
+    if (path) return path;
+  }
+  return null;
+}
+
+// The points shown panels with a fixed width take on the right of the panes, such as Chartroom's
+// or Quarterdeck's when they are open, so the parrot never lands on one.
+export function rightPanels(layout) {
+  const path = pathTo(layout, holdsPanes) ?? pathTo(layout, (n) => n.id === "tabs-row") ?? [];
+  let taken = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const row = path[i];
+    if (row.type !== "row") continue;
+    const siblings = row.children ?? [];
+    for (const panel of siblings.slice(siblings.indexOf(path[i + 1]) + 1)) {
+      if (panel.hidden || !panel.size?.px) continue;
+      taken += panel.size.px + (row.divider?.width ?? 0);
+    }
+  }
+  return taken;
+}
+
 export function corner(width, layout, size) {
   const bar = find(layout, (n) => n.id === "tabs-row") ?? find(layout, (n) => n.id === "tabs");
-  const header = find(layout, (n) => n.header && n.header.position !== "bottom")?.header;
+  const holder = find(layout, (n) => Boolean(titleBar(n)));
+  const header = holder ? titleBar(holder) : null;
   return {
-    x: Math.max(0, Math.round(width - size - MARGIN)),
+    x: Math.max(0, Math.round(width - rightPanels(layout) - size - MARGIN)),
     y: (bar?.size?.px ?? 42) + (header?.height ?? 0) + 8,
   };
+}
+
+export function samePlace(a, b) {
+  return Boolean(a && b && a.x === b.x && a.y === b.y);
 }

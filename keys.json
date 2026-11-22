@@ -1,5 +1,6 @@
 {
   "global": {
-    "cmd-alt-p": "parrot.toggle"
+    "cmd-alt-p": "parrot.toggle",
+    "cmd-alt-shift-p": "parrot.chat"
   }
 }

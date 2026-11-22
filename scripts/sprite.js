@@ -108,6 +108,7 @@ export const FRAMES = {
   watch: { eye: "down", hx: -1, hy: 1 },
   "watch-blink": { eye: "closed", hx: -1, hy: 1 },
   sleep: { eye: "closed", hy: 2 },
+  think: { eye: "up", hx: 1 },
 };
 
 // The tab bar button's icon: the parrot's head, 16 x 16 cells from the calm frame.

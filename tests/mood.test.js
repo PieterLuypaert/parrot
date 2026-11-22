@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, shows, watched } from "../mods/parrot/mood.js";
+import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shows, watched } from "../mods/parrot/mood.js";
 
 const zsh = { key: "shell", name: "zsh", shell: true, agent: false };
 const node = { key: "program", name: "node", shell: false, agent: false };
@@ -97,7 +97,12 @@ describe("mood", () => {
   });
 
   test("shows a previewed mood above everything", () => {
-    expect(mood({ terminal: busy, idleFor: 0, preview: "sleep" })).toBe("sleep");
+    expect(mood({ terminal: busy, idleFor: 0, preview: "sleep", thinking: true })).toBe("sleep");
+  });
+
+  test("thinks while Claude works on a question, even asleep or watching a command", () => {
+    expect(mood({ terminal: busy, idleFor: SLEEP_AFTER, thinking: true })).toBe("think");
+    expect(frame("think", true)).toBe("think");
   });
 });
 
@@ -133,6 +138,47 @@ describe("corner", () => {
 
   test("lands in the top right corner, under the tab bar and the panes' title bars", () => {
     expect(corner(1512, layout, 104)).toEqual({ x: 1512 - 104 - MARGIN, y: 42 + 30 + 8 });
+  });
+
+  test("finds the title bar on the block that holds the panes, as Herdr's layouts set it", () => {
+    const panesBlock = {
+      id: "root", type: "column",
+      children: [
+        { id: "tabs-row", type: "row", size: { px: 42 }, children: [] },
+        { type: "block", content: { pane: { header: { content: { mod: "pane" }, height: 30, position: "top" }, gap: 6 } } },
+      ],
+    };
+    expect(corner(1512, panesBlock, 104).y).toBe(42 + 30 + 8);
+  });
+
+  // The shape of a layout with Chartroom's and Quarterdeck's panels on the right of the work area.
+  const withPanels = (chartroom, quarterdeck) => ({
+    id: "root", type: "row", divider: { width: 1 },
+    children: [
+      { id: "sidebar", type: "column", size: { px: 268 } },
+      {
+        id: "work", type: "column",
+        children: [
+          { id: "tabs-row", type: "row", size: { px: 42 }, children: [] },
+          { id: "work-body", type: "row", children: [{ type: "block", content: { tab: {}, pane: { header: { height: 30, position: "top" } } } }] },
+        ],
+      },
+      { id: "chartroom", type: "block", size: { px: 460 }, hidden: !chartroom },
+      { id: "quarterdeck", type: "block", size: { px: 380 }, hidden: !quarterdeck },
+    ],
+  });
+
+  test("lands left of Quarterdeck's or Chartroom's panel while it is open", () => {
+    expect(corner(1512, withPanels(false, false), 104).x).toBe(1512 - 104 - MARGIN);
+    expect(corner(1512, withPanels(false, true), 104).x).toBe(1512 - 381 - 104 - MARGIN);
+    expect(corner(1512, withPanels(true, true), 104).x).toBe(1512 - 461 - 381 - 104 - MARGIN);
+    expect(corner(1512, withPanels(false, true), 104).y).toBe(42 + 30 + 8);
+  });
+
+  test("tells a new place from the same one", () => {
+    expect(samePlace({ x: 1, y: 2 }, { x: 1, y: 2 })).toBe(true);
+    expect(samePlace({ x: 1, y: 2 }, { x: 3, y: 2 })).toBe(false);
+    expect(samePlace(null, { x: 1, y: 2 })).toBe(false);
   });
 
   test("uses the tabs block's height without a row, and no title bar when the panes have none", () => {
