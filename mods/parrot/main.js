@@ -731,8 +731,10 @@ export default class Parrot extends View {
   // and a cd into a subfolder keeps the same conversation. Outside git it is the folder itself.
   place(cx) {
     const terminal = watched(focused(), panes(), terminals());
-    const cwd = terminal?.cwd ?? this.cwd ?? null;
-    const branch = panes().find((pane) => pane.terminal === terminal?.address)?.branch ?? null;
+    // The pane's folder is where the shell is now; the terminal's own is where it started.
+    const pane = panes().find((p) => p.terminal === terminal?.address);
+    const cwd = pane?.cwd ?? terminal?.cwd ?? this.cwd ?? null;
+    const branch = pane?.branch ?? null;
     if (cwd && !(cwd in this.roots) && !this.looking[cwd] && cx && !checking()) {
       this.looking[cwd] = true;
       cx.spawn(async (cx) => {
