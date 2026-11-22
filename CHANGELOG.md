@@ -4,6 +4,24 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
+Its fixes, one click from your prompt.
+
+### Added
+
+- Chat answers as pixel speech bubbles, with code in a block in your terminal's font. A click on a shell command's line puts it on the terminal's prompt, not yet run, with that pane focused; a command that deletes, overwrites or pushes is red. COPY copies a whole block.
+- **Clear chat** in the chat's header, and `/clear` (or `/new`, `/reset`) in the chat, start a project's conversation over without asking Claude.
+- `parrot.explain` asks about the current alert, as its **Ask Parrot** button does.
+
+### Fixed
+
+- **Ask Parrot why** reaches Claude: it no longer depends on the alert's window, which closes with the click.
+
+### Changed
+
+- Plan version 9: putting a chat answer's commands on your prompt comes forward as 0.4.0; running a fix with one click stays 0.5.0.
+
 ## [0.3.0] - 2026-11-22
 
 It reacts to your terminal.
