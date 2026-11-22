@@ -3,7 +3,10 @@
 
 export const SLEEP_AFTER = 10 * 60 * 1000;
 export const PREVIEW_FOR = 10 * 1000;
-export const MOODS = ["calm", "watch", "sleep", "think"];
+export const MOODS = ["calm", "watch", "sleep", "think", "alarm", "dance"];
+export const DANCE = ["dance-a", "dance-b", "dance-c", "dance-b"];
+export const DANCE_BEAT = 190;
+export const DANCE_BEATS = 16;
 export const MARGIN = 16;
 
 const SHELLS = ["zsh", "bash", "fish", "sh", "dash", "nu", "pwsh"];
@@ -57,18 +60,21 @@ export function activity(focus, terminal) {
   return [focus?.terminal ?? "", terminal?.program?.key ?? "", terminal?.program?.name ?? "", terminal?.foreground?.pid ?? ""].join("|");
 }
 
-export function mood({ terminal, idleFor, preview, thinking }) {
+export function mood({ terminal, idleFor, preview, thinking, alarm, dancing }) {
   if (preview) return preview;
+  if (dancing) return "dance";
   if (thinking) return "think";
+  if (alarm) return "alarm";
   if (runsCommand(terminal)) return "watch";
   if (idleFor >= SLEEP_AFTER) return "sleep";
   return "calm";
 }
 
-// The picture for a mood, with its eyes shut while it blinks. Asleep they are shut anyway, and
-// thinking it looks up without blinking.
-export function frame(current, blinking) {
-  if (!blinking || current === "sleep" || current === "think") return current;
+// The picture for a mood, with its eyes shut while it blinks. Asleep they are shut anyway; thinking
+// or startled it does not blink, and dancing it steps through its moves by the beat.
+export function frame(current, blinking, beat = 0) {
+  if (current === "dance") return DANCE[beat % DANCE.length];
+  if (!blinking || current === "sleep" || current === "think" || current === "alarm") return current;
   return current === "watch" ? "watch-blink" : "blink";
 }
 
