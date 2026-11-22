@@ -6,5 +6,5 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ### Added
 
-- The plan (`PLAN.md`, plan version 1): what parrot does, what the Herdr app allows and what it does not, accuracy, sources beyond the terminal, versions and the build order.
-- A visual sketch of parrot's moods and three flows: an error in the terminal, an error outside it, and a question (`sketch/moods.html`).
+- The plan (`PLAN.md`, plan version 2): what parrot does, what the Herdr app allows and what it does not, accuracy, sources beyond the terminal, versions and the build order.
+- A visual sketch in English of parrot's moods and three flows: an error in the terminal, an error outside it, and a question (`sketch/moods.html`).

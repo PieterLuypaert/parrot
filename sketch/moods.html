@@ -101,7 +101,7 @@
   .work {
     --sprite: 128px;
     position: relative; display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
-    gap: 1px; background: var(--border); height: 450px;
+    gap: 1px; background: var(--border); height: 470px;
   }
   .pane { background: var(--term); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .pane-head { display: flex; gap: 7px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border); font: 500 11.5px var(--f-body); color: var(--muted); white-space: nowrap; overflow: hidden; }
@@ -178,23 +178,26 @@
   .lbl.guess { background: var(--warn); color: var(--warn-fg); }
   .basis { margin: 0; font: 11.5px var(--f-mono); color: var(--dim); overflow-wrap: anywhere; }
   .dots { display: inline-flex; gap: 3px; margin-left: 4px; }
-  .dots i { width: 4px; height: 4px; background: var(--muted); display: block; animation: dot 1.1s infinite; }
+  .dots i { width: 4px; height: 4px; background: currentColor; display: block; animation: dot 1.1s infinite; }
   .dots i:nth-child(2) { animation-delay: 0.18s; }
   .dots i:nth-child(3) { animation-delay: 0.36s; }
   @keyframes dot { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
   .b-actions { display: flex; flex-direction: column; gap: 6px; }
   .act {
+    position: relative; overflow: hidden;
     display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left;
     padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--raised); color: var(--fg);
     font: 500 13px var(--f-body); cursor: pointer; transition: transform 0.1s ease, filter 0.1s ease;
   }
   .act code { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+  .act .n { opacity: 0.7; margin-right: 6px; }
   .act.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-  .act.primary code { color: var(--accent-fg); opacity: 0.8; }
+  .act.primary code { color: var(--accent-fg); opacity: 0.85; }
   .act.danger { border-color: var(--alarm); }
-  .act.danger.is-armed { background: var(--alarm); color: var(--alarm-fg); }
-  .act.danger.is-armed code, .act.danger.is-armed .tag { color: var(--alarm-fg); }
+  .act.danger.is-counting { background: var(--alarm); color: var(--alarm-fg); }
+  .act.danger.is-counting code, .act.danger.is-counting .tag { color: var(--alarm-fg); }
   .act.is-pressed { transform: translateY(1px); filter: brightness(0.92); }
+  .count-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--alarm-fg); opacity: 0.75; }
   .tag { font: 600 10px var(--f-body); letter-spacing: 0.06em; text-transform: uppercase; color: var(--alarm); margin-top: 2px; }
   .b-ask { display: flex; gap: 6px; }
   .b-ask input {
@@ -210,6 +213,15 @@
   .s-state { margin-left: 6px; font: 600 10px var(--f-body); letter-spacing: 0.05em; text-transform: uppercase; color: var(--alarm); }
   .s-state.done { color: var(--ok); }
   .s-text { font-size: 13px; }
+  .run-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .run-steps li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+  .run-steps code { font-size: 12px; overflow-wrap: anywhere; }
+  .run-steps .mark { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border); display: grid; place-items: center; font-size: 10px; line-height: 1; }
+  .run-steps .state { font: 11px var(--f-mono); color: var(--dim); white-space: nowrap; display: inline-flex; align-items: center; }
+  .run-steps li[data-state="running"] .mark { border-color: var(--accent); background: var(--accent); }
+  .run-steps li[data-state="running"] .state { color: var(--accent); }
+  .run-steps li[data-state="done"] .mark { border-color: var(--ok); background: var(--ok); color: var(--ok-fg); }
+  .run-steps li[data-state="done"] .state { color: var(--ok); }
 
   /* Player under the window */
   .steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
@@ -254,7 +266,7 @@
   .foot code { font-size: 12px; color: var(--fg); overflow-wrap: anywhere; }
 
   @media (max-width: 720px) {
-    .work { grid-template-columns: minmax(0, 1fr); --sprite: 96px; height: 560px; }
+    .work { grid-template-columns: minmax(0, 1fr); --sprite: 96px; height: 580px; }
     .pane-agent { display: none; }
     .bubble { top: calc(30px + var(--sprite) - 4px); right: 12px; width: calc(100% - 24px); max-height: calc(100% - 30px - var(--sprite) - 12px); }
     .bubble::before { top: -7px; right: calc(var(--sprite) * 0.55); border-right: 0; border-left: 1px solid var(--border); }
@@ -269,23 +281,23 @@
 
 <main class="wrap">
   <header class="intro">
-    <p class="eyebrow">Schets voor een Herdr-mod · plan 1</p>
+    <p class="eyebrow">Sketch for a Herdr mod · plan 2</p>
     <div class="intro-top">
-      <canvas id="logo" role="img" aria-label="De papegaai"></canvas>
+      <canvas id="logo" role="img" aria-label="The parrot"></canvas>
       <h1 class="wordmark">parrot</h1>
     </div>
-    <p class="lede">Een papegaai die meekijkt terwijl je werkt. Ziet hij een fout, in je terminal of daarbuiten, dan schrikt hij op. Klik op hem en je eigen Claude zoekt uit wat er misging, met de fix als knop. Je kunt hem ook gewoon iets vragen.</p>
+    <p class="lede">A parrot that watches while you work. When it spots an error, in your terminal or beyond it, it startles. Click it and your own Claude works out what went wrong, with the fix as one button. You can also just ask it something.</p>
   </header>
 
   <section aria-labelledby="demo-h">
     <div class="sec-head">
-      <h2 id="demo-h">Zo verloopt het</h2>
-      <p>Een nagebootst Herdr-venster met drie verlopen. Het speelt vanzelf af; klik zelf op de papegaai, de knoppen in het wolkje of de vraagbalk om mee te spelen. Met de knop Parrot rechts in de tabbalk zet je hem aan of uit.</p>
+      <h2 id="demo-h">How it goes</h2>
+      <p>A mock Herdr window with three flows. It plays by itself; click the parrot, the buttons in the speech bubble or the question bar to join in. The Parrot button on the right of the tab bar turns it on or off.</p>
     </div>
-    <div class="scen" role="tablist" aria-label="Verloop">
-      <button class="scen-btn" type="button" role="tab" data-scen="terminal" aria-selected="true">Fout in de terminal</button>
-      <button class="scen-btn" type="button" role="tab" data-scen="outside" aria-selected="false">Fout buiten de terminal</button>
-      <button class="scen-btn" type="button" role="tab" data-scen="ask" aria-selected="false">Een vraag</button>
+    <div class="scen" role="tablist" aria-label="Flow">
+      <button class="scen-btn" type="button" role="tab" data-scen="terminal" aria-selected="true">Error in the terminal</button>
+      <button class="scen-btn" type="button" role="tab" data-scen="outside" aria-selected="false">Error outside the terminal</button>
+      <button class="scen-btn" type="button" role="tab" data-scen="ask" aria-selected="false">A question</button>
     </div>
     <div class="herdr">
       <div class="tabbar">
@@ -293,8 +305,8 @@
         <span class="tab">Main</span>
         <span class="tab is-active">feat/export</span>
         <span class="mod-btns">
-          <span class="mod-btn is-static" title="Je bestaande Chartroom-knop, ter illustratie">Chartroom</span>
-          <button class="mod-btn" id="parrot-toggle" type="button" aria-pressed="true" title="Parrot aan of uit (⌥⌘P)"><canvas id="parrot-icon" aria-hidden="true"></canvas>Parrot</button>
+          <span class="mod-btn is-static" title="Your existing Chartroom button, for illustration">Chartroom</span>
+          <button class="mod-btn" id="parrot-toggle" type="button" aria-pressed="true" title="Parrot on or off (⌥⌘P)"><canvas id="parrot-icon" aria-hidden="true"></canvas>Parrot</button>
         </span>
       </div>
       <div class="work" id="work">
@@ -306,55 +318,55 @@
 ● Bash pnpm test orders
   └ 42 passed
 * Working...</div>
-          <div class="skip-note">Agent-pane: hier kijkt parrot niet mee.</div>
+          <div class="skip-note">Agent pane: parrot doesn't watch here.</div>
         </div>
         <div class="pane pane-shell">
           <div class="pane-head"><span class="sdot"></span>zsh <span class="dim">shop-api · feat/export</span></div>
           <div class="term" id="term"></div>
         </div>
         <div class="ext" id="ext" hidden>
-          <span class="ext-head">In je browser, buiten Herdr</span>
+          <span class="ext-head">In your browser, outside Herdr</span>
           <span class="ext-url">localhost:3000/orders</span>
           <span class="ext-line"><span class="err">POST /api/orders/export</span><span class="badge">500</span></span>
         </div>
         <div class="perch">
-          <button class="parrot-btn" id="parrot" type="button" aria-label="De papegaai"><canvas id="parrot-canvas"></canvas></button>
-          <span class="hint" id="hint" hidden>klik me</span>
+          <button class="parrot-btn" id="parrot" type="button" aria-label="The parrot"><canvas id="parrot-canvas"></canvas></button>
+          <span class="hint" id="hint" hidden>click me</span>
         </div>
         <div class="bubble" id="bubble" hidden role="dialog" aria-label="Parrot"><div class="bubble-in" id="bubble-in"></div></div>
       </div>
     </div>
-    <div class="steps" id="steps" aria-label="Stappen"></div>
+    <div class="steps" id="steps" aria-label="Steps"></div>
     <div class="player-row">
       <p class="caption" id="caption" aria-live="polite"></p>
       <div class="controls">
-        <label class="toggle"><input type="checkbox" id="pirate"> Piratentaal</label>
-        <button class="ctl" id="play" type="button">Pauzeer</button>
-        <button class="ctl" id="restart" type="button">Opnieuw</button>
+        <label class="toggle"><input type="checkbox" id="pirate"> Pirate talk</label>
+        <button class="ctl" id="play" type="button">Pause</button>
+        <button class="ctl" id="restart" type="button">Restart</button>
       </div>
     </div>
   </section>
 
   <section aria-labelledby="moods-h">
     <div class="sec-head">
-      <h2 id="moods-h">Stemmingen</h2>
-      <p>Elke stemming is een handvol frames van 32 bij 32 pixels. In Herdr worden dat PNG's die de mod met een timer wisselt.</p>
+      <h2 id="moods-h">Moods</h2>
+      <p>Each mood is a handful of 32 by 32 pixel frames. In Herdr they become PNGs that the mod swaps on a timer.</p>
     </div>
     <div class="mood-grid" id="mood-grid"></div>
   </section>
 
   <section aria-labelledby="limits-h">
     <div class="sec-head">
-      <h2 id="limits-h">Wat kan binnen Herdr, en wat niet</h2>
-      <p>Nagekeken in de mod-API van de Herdr-app (AGENTS.md, herdr.d.ts, gpui-kit.d.ts) en in <code>hc --help</code>. Per punt staat de aanpak in het plan.</p>
+      <h2 id="limits-h">What Herdr allows, and what it doesn't</h2>
+      <p>Checked against the Herdr app's mod API (AGENTS.md, herdr.d.ts, gpui-kit.d.ts) and <code>hc --help</code>. The plan has the approach for each point.</p>
     </div>
     <div class="cols">
-      <div class="col col-can"><h3>Kan</h3><ul id="can"></ul></div>
-      <div class="col col-cant"><h3>Kan niet</h3><ul id="cant"></ul></div>
+      <div class="col col-can"><h3>Can</h3><ul id="can"></ul></div>
+      <div class="col col-cant"><h3>Can't</h3><ul id="cant"></ul></div>
     </div>
   </section>
 
-  <footer class="foot">Plan 1: <code>~/Documents/Projects-privé/parrot/PLAN.md</code>. Dit is een schets; in Herdr draait nog niets.</footer>
+  <footer class="foot">Plan 2: <code>~/Documents/Projects-privé/parrot/PLAN.md</code> (in Dutch). This is a sketch; nothing runs in Herdr yet.</footer>
 </main>
 
 <script>
@@ -515,6 +527,7 @@
     for (const c of [].concat(kids || [])) if (c != null) n.append(c);
     return n;
   }
+  const dotsEl = () => el("span", { class: "dots", "aria-hidden": "true" }, [el("i"), el("i"), el("i")]);
 
   const sprites = [];
   const workEl = document.getElementById("work");
@@ -527,16 +540,16 @@
 
   /* ---------- Moods grid ---------- */
   const MOOD_CARDS = [
-    { m: "idle", name: "Rustig", when: "Niets aan de hand.", herdr: "Wiegen met native top-motion, knipperen als los frame." },
-    { m: "sleep", name: "Slaapt", when: "Een tijd niets gebeurd.", herdr: "Traag gewisselde frames met de z's." },
-    { m: "watch", name: "Kijkt mee", when: "Er loopt een commando in een shell.", herdr: "Kop scheef als eigen frame, want draaien kan niet." },
-    { m: "alarm", name: "Schrikt", when: "Hij ziet een fout, in je terminal of daarbuiten.", herdr: "Schudden met frames, plus een squawk via playSound." },
-    { m: "think", name: "Denkt na", when: "Je eigen Claude is bezig.", herdr: "Puntjes als frames tot exec klaar is." },
-    { m: "happy", name: "Danst", when: "Het commando na de fix slaagt.", herdr: "Vleugels op en neer, wippen met frames." },
+    { m: "idle", name: "Calm", when: "Nothing going on.", herdr: "Swaying with native top motion, blinking as a separate frame." },
+    { m: "sleep", name: "Asleep", when: "Nothing happened for a while.", herdr: "Slowly swapped frames with the z's." },
+    { m: "watch", name: "Watching", when: "A command is running in a shell.", herdr: "Head tilt as its own frame, since rotating isn't possible." },
+    { m: "alarm", name: "Startled", when: "It spots an error, in your terminal or beyond.", herdr: "Shaking with frames, plus a squawk via playSound." },
+    { m: "think", name: "Thinking", when: "Your own Claude is working.", herdr: "Dots as frames until exec is done." },
+    { m: "happy", name: "Dancing", when: "The fix succeeded.", herdr: "Wings up and down, hopping with frames." },
   ];
   const moodGrid = document.getElementById("mood-grid");
   for (const c of MOOD_CARDS) {
-    const cv = el("canvas", { role: "img", "aria-label": "Papegaai: " + c.name });
+    const cv = el("canvas", { role: "img", "aria-label": "Parrot: " + c.name });
     moodGrid.append(el("article", { class: "mood" }, [
       el("div", { class: "mood-stage" }, cv),
       el("div", { class: "mood-text" }, [
@@ -551,25 +564,26 @@
 
   /* ---------- Can / can't ---------- */
   const CAN = [
-    ["Vrij staan, zonder kaartje rond zich, en versleept worden", 'openOverlay({ kind: "window", frame: "none", keep: true })'],
-    ["Of als kaartje aan de rand, half verstopt tot je hovert", "floating block met peek"],
-    ["Een aan/uit-knop in je tabbalk, naast Chartroom", 'block "parrot-button" in de tabbalk · ⌥⌘P'],
-    ["Pixel-art in volle kleur, frame per frame geanimeerd", "image() + cx.sleep, native motion op top"],
-    ["Letterlijk lezen wat er in een pane staat", "hc read <t> --lines 200"],
-    ["Een wachter op de achtergrond laten draaien", "hc run --bg --name parrot-watch"],
-    ["Je eigen Claude vragen, alleen lezend, met doorvragen", 'exec("claude", ["-p", …]) · --resume <id>'],
-    ["Een commando in de pane draaien na jouw klik", "hc send <t> <commando>"],
-    ["Squawken, of een melding als je ergens anders zit", 'playSound("squawk.mp3") · notify()'],
-    ["Agent-panes herkennen en overslaan", "agents(), panes()"],
+    ["Stand on its own, without a card around it, and be dragged around", 'openOverlay({ kind: "window", frame: "none", keep: true })'],
+    ["Or sit as a card on the edge, half hidden until you hover", "floating block with peek"],
+    ["An on/off button in your tab bar, next to Chartroom", 'block "parrot-button" in the tab bar · ⌥⌘P'],
+    ["Full-colour pixel art, animated frame by frame", "image() + cx.sleep, native motion on top"],
+    ["Read exactly what a pane shows", "hc read <t> --lines 200"],
+    ["Run a watcher in the background", "hc run --bg --name parrot-watch"],
+    ["Ask your own Claude, read-only, with follow-ups", 'exec("claude", ["-p", …]) · --resume <id>'],
+    ["Run a fix in one click, step by step", "hc send <t> <command>, then wait for the hook's exit code 0"],
+    ["Take you to a pane, a file or a URL", 'run("pane.focus") · cursor -g <file>:<line> · open <url>'],
+    ["Squawk, or notify you when you're elsewhere", 'playSound("squawk.mp3") · notify()'],
+    ["Recognise agent panes and skip them", "agents(), panes()"],
   ];
   const CANT = [
-    ["Tekenen tussen je terminalregels", "Hij staat boven het werkgebied, niet erin."],
-    ["Zelf zien dat een commando faalde", "Een zsh-hook schrijft elke exitcode weg; parrot volgt die map met watchFolder."],
-    ["Zelf blijven volgen vanuit de mod", "exec stopt na hoogstens 10 minuten. De wachter draait apart, als achtergrondterminal."],
-    ["In je browser kijken", "Een kleine Chrome-extensie voor localhost meldt fouten aan de wachter."],
-    ["Precies op één bepaalde pane gaan zitten", "Panes geven geen positie in pixels. Op de pane-header zitten test een spike."],
-    ["Draaien of schalen als animatie", "Alleen opacity, top, left, width en height bewegen native. Kop scheef wordt een eigen frame."],
-    ["Claude's antwoord woord per woord tonen", "exec geeft het antwoord in één keer; tot dan denkt hij na."],
+    ["Draw between your terminal lines", "It stands above the work area, not in it."],
+    ["See by itself that a command failed", "A zsh hook records every exit code; parrot follows that folder with watchFolder."],
+    ["Keep watching from inside the mod", "exec stops after 10 minutes at most. The watcher runs separately, as a background terminal."],
+    ["Look into your browser", "A small Chrome extension for localhost reports errors to the watcher."],
+    ["Sit exactly on one particular pane", "Panes have no position in pixels. A spike tests sitting on the pane header."],
+    ["Rotate or scale as an animation", "Only opacity, top, left, width and height move natively. A tilted head becomes its own frame."],
+    ["Show Claude's answer word by word", "exec returns the answer in one go; until then it thinks."],
   ];
   const canEl = document.getElementById("can"), cantEl = document.getElementById("cant");
   for (const [t, api] of CAN) canEl.append(el("li", {}, [el("strong", { text: t }), el("code", { text: api })]));
@@ -580,7 +594,7 @@
   const P = (cmd, cursor) => ({ prompt: true, cmd: cmd || "", cursor: !!cursor });
   const L = (...segs) => ({ segs });
   const CMD1 = "pnpm db:migrate";
-  const FIX = "docker compose up -d db && pnpm db:migrate";
+  const DB_UP = "docker compose up -d db";
   const WORKER = "docker compose up -d worker";
   const STREAM = [
     L(["dim", "> shop-api@1.4.0 db:migrate"]), L(["dim", "> prisma migrate deploy"]), L(),
@@ -592,11 +606,13 @@
     L(["dim", "Please make sure your database server is running."]),
     L(["badge", " ELIFECYCLE "], ["", " Command failed with exit code 1."]),
   ];
-  const FIX_OUT = [
+  const DB_OUT = [
     L(["", "[+] Running 2/2"]),
     L(["ok", " ✓ "], ["", "Network shop-api_default  Created"]),
     L(["ok", " ✓ "], ["", "Container shop-api-db-1   Started"]),
-    L(["dim", "> prisma migrate deploy"]),
+  ];
+  const MIGRATE_OUT = [
+    L(["dim", "> shop-api@1.4.0 db:migrate"]), L(["dim", "> prisma migrate deploy"]),
     L(["", "3 migrations found in prisma/migrations"]),
     L(["ok", "All migrations have been successfully applied."]),
   ];
@@ -605,7 +621,7 @@
     if (n === 0) return [P("", true)];
     const failed = [P(CMD1), ...STREAM, ...ERROR];
     if (n === 3) return [...failed, P("", true)];
-    return [...failed, P(FIX), ...FIX_OUT, P("", true)];
+    return [...failed, P(DB_UP), ...DB_OUT, P(CMD1), ...MIGRATE_OUT, P("", true)];
   }
   const devLines = () => [
     P("pnpm --filter web dev"), L(["dim", "> web@1.4.0 dev"]), L(["dim", "> vite"]), L(),
@@ -656,108 +672,116 @@
   /* ---------- What parrot says ---------- */
   const pirateBox = document.getElementById("pirate");
   const tx = (v) => (v && typeof v === "object" && "plain" in v ? (pirateBox.checked ? v.pirate : v.plain) : v);
-  const PEEK = { plain: "Even kijken", pirate: "Even door de kijker turen" };
-  const MORE = { plain: "Vraag verder, zelfde gesprek", pirate: "Vraag de papegaai verder" };
+  const PEEK = { plain: "Let me look", pirate: "Peering through the spyglass" };
+  const MORE = { plain: "Ask more, same conversation", pirate: "Ask the parrot more" };
 
-  const THINK_T = { kind: "think", meta: "leest 9 regels uit zsh · shop-api", text: PEEK };
+  const THINK_T = { kind: "think", meta: "reading 9 lines from zsh · shop-api", text: PEEK };
   const ANSWER_T = {
-    kind: "answer", meta: "claude -p · 4,2 s", source: "zsh · shop-api", check: "docker compose ps",
-    title: { plain: "De database draait niet", pirate: "Arr, geen database in zicht!" },
+    kind: "answer", meta: "claude -p · 4.2 s", source: "zsh · shop-api", check: "docker compose ps",
+    title: { plain: "The database isn't running", pirate: "Arr, no database in sight!" },
     body: {
-      plain: "Er luistert niets op poort 5432: docker compose ps toont geen db-container. De compose-stack van deze worktree staat uit, dus Prisma vindt geen Postgres.",
-      pirate: "Op poort 5432 ligt geen schip aan: docker compose ps toont geen db-container. De compose-vloot van deze worktree ligt nog in de haven, dus Prisma vindt geen Postgres.",
+      plain: "Nothing listens on port 5432: docker compose ps shows no db container. This worktree's compose stack is down, so Prisma can't find Postgres.",
+      pirate: "No ship moored at port 5432: docker compose ps shows no db container. This worktree's compose fleet is still in harbour, so Prisma can't find Postgres.",
     },
-    basis: "pnpm db:migrate, regels 6 tot 8",
+    basis: "pnpm db:migrate, lines 6 to 8",
     actions: [
-      { primary: true, go: true, code: FIX, label: { plain: "Start de database en migreer", pirate: "Hijs de database en migreer" } },
+      { primary: true, go: true, steps: [DB_UP, CMD1], label: { plain: "Start the database and migrate", pirate: "Hoist the database and migrate" } },
       {
-        danger: true, code: "pnpm prisma migrate reset", label: { plain: "Database resetten", pirate: "Database kielhalen" },
-        armed: { plain: "Zeker? Klik nog eens om alle data te wissen.", pirate: "Zeker, matroos? Klik nog eens en alle data gaat overboord." },
+        danger: true, code: "pnpm prisma migrate reset", label: { plain: "Reset the database", pirate: "Keelhaul the database" },
+        counting: { plain: (n) => "Resetting in " + n + " s · click to cancel", pirate: (n) => "Overboard in " + n + " s · click to cancel" },
       },
     ],
     ask: MORE,
   };
-  const THINK_O = { kind: "think", meta: "leest de request, de log van api-1 en de code", text: { plain: "Even kijken", pirate: "Even in het logboek turen" } };
+  const RUN_T = {
+    kind: "run", meta: "running the fix in zsh · shop-api",
+    title: { plain: "Running the fix", pirate: "Making way" },
+    steps: [DB_UP, CMD1],
+  };
+  const THINK_O = { kind: "think", meta: "reading the request, the api-1 log and the code", text: { plain: "Let me look", pirate: "Peering into the logbook" } };
   const ANSWER_O = {
-    kind: "answer", meta: "claude -p · 6,8 s", source: "browser · localhost:3000", check: "docker compose logs api --tail 200",
-    title: { plain: "De export crasht op orders zonder verzenddatum", pirate: "Arr, de export loopt op de klippen" },
+    kind: "answer", meta: "claude -p · 6.8 s", source: "browser · localhost:3000", check: "docker compose logs api --tail 200",
+    title: { plain: "The export crashes on orders without a ship date", pirate: "Arr, the export ran aground" },
     body: {
-      plain: "In de log van api-1: TypeError: Cannot read properties of null (reading 'toISOString') in export.service.ts:48. Orders zonder shippedAt breken de export. Die regel is 12 minuten geleden aangepast, in je laatste commit.",
-      pirate: "In het logboek van api-1: TypeError: Cannot read properties of null (reading 'toISOString') in export.service.ts:48. Orders zonder shippedAt doen de export zinken. Die regel is 12 minuten geleden aangepast, in je laatste commit.",
+      plain: "In the api-1 log: TypeError: Cannot read properties of null (reading 'toISOString') in export.service.ts:48. Orders without shippedAt break the export. That line changed 12 minutes ago, in your last commit.",
+      pirate: "In the api-1 logbook: TypeError: Cannot read properties of null (reading 'toISOString') in export.service.ts:48. Orders without shippedAt sink the export. That line changed 12 minutes ago, in your last commit.",
     },
-    basis: "api-1 om 14:02:11 · export.service.ts:48 · git log -1",
+    basis: "api-1 at 14:02:11 · export.service.ts:48 · git log -1",
     actions: [
-      { primary: true, code: "cursor -g src/orders/export.service.ts:48", note: "Opent export.service.ts op regel 48 in Cursor.", label: { plain: "Open de regel in Cursor", pirate: "Zet koers naar regel 48" } },
-      { code: "docker compose logs api --tail 200", note: "Gaat met hc send naar je shell-pane.", label: { plain: "Toon de hele log", pirate: "Open het hele logboek" } },
+      { primary: true, code: "cursor -g src/orders/export.service.ts:48", note: "Opens export.service.ts at line 48 in Cursor.", label: { plain: "Open the line in Cursor", pirate: "Set course for line 48" } },
+      { code: "docker compose logs api --tail 200", note: "Goes to your shell pane with hc send.", label: { plain: "Show the full log", pirate: "Open the whole logbook" } },
     ],
     ask: MORE,
   };
   const SEEN_A = {
-    kind: "seen", meta: "niets aan de hand",
-    title: { plain: "Wat hij vandaag zag", pirate: "Wat de uitkijk vandaag zag" },
+    kind: "seen", meta: "all quiet",
+    title: { plain: "What it saw today", pirate: "What the lookout saw today" },
     items: [
-      { time: "14:02", src: "browser · localhost:3000", text: "POST /api/orders/export gaf 500", done: false },
-      { time: "13:47", src: "zsh · shop-api", text: "pnpm db:migrate faalde, daarna gelukt", done: true },
-      { time: "11:20", src: "CI · test (web)", text: "rood op feat/export", done: false },
+      { time: "14:02", src: "browser · localhost:3000", text: "POST /api/orders/export returned 500", done: false },
+      { time: "13:47", src: "zsh · shop-api", text: "pnpm db:migrate failed, then succeeded", done: true },
+      { time: "11:20", src: "CI · test (web)", text: "red on feat/export", done: false },
     ],
-    ask: { plain: "Vraag iets aan parrot", pirate: "Vraag het de papegaai" },
+    ask: { plain: "Ask parrot something", pirate: "Ask the parrot" },
   };
-  const THINK_A = { kind: "think", meta: "kijkt met docker compose ps", text: PEEK };
+  const THINK_A = { kind: "think", meta: "checking with docker compose ps", text: PEEK };
   const ANSWER_A = {
-    kind: "answer", meta: "claude -p · 3,4 s", question: "Draait alles van deze worktree?", source: "shop-api · feat/export", check: "docker compose ps",
-    title: { plain: "Bijna: de worker ligt stil", pirate: "Bijna, kapitein: de worker ligt stil" },
+    kind: "answer", meta: "claude -p · 3.4 s", question: "Is everything in this worktree running?", source: "shop-api · feat/export", check: "docker compose ps",
+    title: { plain: "Almost: the worker is down", pirate: "Almost, captain: the worker is dead in the water" },
     body: {
-      plain: "api-1 en db-1 draaien. worker-1 stopte 6 minuten geleden met exitcode 137: hij had te weinig geheugen.",
-      pirate: "api-1 en db-1 varen. worker-1 ging 6 minuten geleden kopje onder met exitcode 137: te weinig geheugen aan boord.",
+      plain: "api-1 and db-1 are running. worker-1 stopped 6 minutes ago with exit code 137: it ran out of memory.",
+      pirate: "api-1 and db-1 are sailing. worker-1 went under 6 minutes ago with exit code 137: not enough memory on board.",
     },
     basis: "docker compose ps · worker-1 Exited (137) 6 minutes ago",
-    actions: [{ primary: true, go: true, code: WORKER, label: { plain: "Start de worker opnieuw", pirate: "Zet de worker weer op koers" } }],
+    actions: [
+      { primary: true, go: true, code: WORKER, label: { plain: "Restart the worker", pirate: "Put the worker back on course" } },
+      { code: 'run("pane.focus", { terminal: "t4q" })', note: "Moves the focus to that pane in Herdr.", label: { plain: "Go to the pane where the stack runs", pirate: "Sail to the pane where the stack runs" } },
+    ],
     ask: MORE,
   };
 
   /* ---------- The three flows ---------- */
   const SCEN = {
     terminal: [
-      { k: "idle", chip: "Rustig", mood: "idle", lines: () => stage(0), dur: 2600, auto: "next",
-        cap: "Rustig. Hij staat in de hoek van het werkgebied, wiegt zachtjes en knippert af en toe." },
-      { k: "cmd", chip: "Commando", mood: "watch", lines: () => stage(0), type: { cmd: CMD1, out: STREAM, running: true }, dur: 250, auto: "next",
-        cap: "Je start een commando in een gewone shell. Hij kijkt mee, kopje scheef." },
-      { k: "alarm", chip: "Fout", mood: "alarm", lines: () => stage(3), hint: "klik me", clickable: true, dur: 3400, auto: "parrot",
-        cap: "Het commando eindigt met exitcode 1. De zsh-hook meldt het en hij schrikt op. Claude is nog niet gevraagd: dat gebeurt pas als je klikt." },
-      { k: "think", chip: "Denkt na", mood: "think", lines: () => stage(3), bubble: THINK_T, afterClose: "sleep", dur: 2400, auto: "next",
-        cap: "Je klikte. Parrot knipt de output van dat ene commando uit de pane, maskeert geheimen en vraagt het aan je eigen Claude, die alleen mag lezen." },
-      { k: "answer", chip: "Uitleg", mood: "talk", talk: true, lines: () => stage(3), bubble: ANSWER_T, afterClose: "sleep", dur: 7500, auto: "primary",
-        cap: "Gecontroleerd: Claude draaide zelf docker compose ps, uit de vaste lijst controles. Zonder controle stond er Vermoeden. De fix staat als knop klaar; wat data wist, vraagt een tweede klik." },
-      { k: "run", chip: "Run", mood: "watch", lines: () => stage(3), type: { cmd: FIX, out: FIX_OUT }, dur: 300, auto: "next",
-        cap: "Je klikte op de fix. Parrot stuurt het commando met hc send naar de pane." },
-      { k: "happy", chip: "Danst", mood: "happy", lines: () => stage(4), dur: 3400, auto: "next",
-        cap: "Het commando na de fix eindigt met exitcode 0. Hij danst." },
-      { k: "sleep", chip: "Slaapt", mood: "sleep", lines: () => stage(4), clickable: true, dur: 5200, auto: "next",
-        cap: "Een tijd niets. Hij valt in slaap tot er weer iets gebeurt. Klik om hem te wekken." },
+      { k: "idle", chip: "Calm", mood: "idle", lines: () => stage(0), dur: 2600, auto: "next",
+        cap: "Calm. It stands in the corner of the work area, sways gently and blinks now and then." },
+      { k: "cmd", chip: "Command", mood: "watch", lines: () => stage(0), type: [{ cmd: CMD1, out: STREAM }], running: true, dur: 250, auto: "next",
+        cap: "You start a command in a plain shell. It watches, head tilted." },
+      { k: "alarm", chip: "Error", mood: "alarm", lines: () => stage(3), hint: "click me", clickable: true, dur: 3400, auto: "parrot",
+        cap: "The command ends with exit code 1. The zsh hook reports it and the parrot startles. Claude hasn't been asked yet: that only happens when you click." },
+      { k: "think", chip: "Thinking", mood: "think", lines: () => stage(3), bubble: THINK_T, afterClose: "sleep", dur: 2400, auto: "next",
+        cap: "You clicked. Parrot cuts the output of that one command from the pane, masks secrets and asks your own Claude, which may only read." },
+      { k: "answer", chip: "Answer", mood: "talk", talk: true, lines: () => stage(3), bubble: ANSWER_T, afterClose: "sleep", dur: 8000, auto: "primary",
+        cap: "Checked: Claude ran docker compose ps itself, from the fixed list of checks; without a check it would say Guess. The fix is one button, even with two steps. Something that deletes data is one click too, with three seconds to cancel." },
+      { k: "run", chip: "Run", mood: "watch", lines: () => stage(3), bubble: RUN_T, type: [{ cmd: DB_UP, out: DB_OUT }, { cmd: CMD1, out: MIGRATE_OUT }], dur: 500, auto: "next",
+        cap: "You clicked the fix. Parrot sends the first step with hc send, waits for the hook to report exit code 0, then sends the next. If a step fails, it stops and looks again." },
+      { k: "happy", chip: "Dancing", mood: "happy", lines: () => stage(4), dur: 3400, auto: "next",
+        cap: "Both steps ended with exit code 0. It dances." },
+      { k: "sleep", chip: "Asleep", mood: "sleep", lines: () => stage(4), clickable: true, dur: 5200, auto: "next",
+        cap: "Nothing for a while. It falls asleep until something happens. Click to wake it." },
     ],
     outside: [
-      { k: "o-idle", chip: "Rustig", mood: "idle", lines: devLines, dur: 2800, auto: "next",
-        cap: "Je web-app draait in de pane, de api in de containers van je stack. Je klikt rond in je app in de browser." },
-      { k: "o-alarm", chip: "Fout in de browser", mood: "alarm", lines: devLines, ext: true, hint: "browser · 500", clickable: true, dur: 3600, auto: "parrot",
-        cap: "In de browser faalt een request met 500. De extensie ziet het op localhost en meldt het aan de wachter, en hij schrikt op. In je terminal staat niets: de fout zit in de api-container." },
-      { k: "o-think", chip: "Denkt na", mood: "think", lines: devLines, ext: true, bubble: THINK_O, dur: 2600, auto: "next",
-        cap: "Parrot geeft Claude de request uit de browser. Claude leest zelf de log van api-1 en de code, met controles die alleen lezen." },
-      { k: "o-answer", chip: "Uitleg", mood: "talk", talk: true, lines: devLines, ext: true, bubble: ANSWER_O, dur: 9000, auto: "next",
-        cap: "Gecontroleerd met de containerlog, met het bestand, de regel en de recente wijziging die het verklaart. Een fix schrijft hij niet: dat blijft voor jou of je agent." },
+      { k: "o-idle", chip: "Calm", mood: "idle", lines: devLines, dur: 2800, auto: "next",
+        cap: "Your web app runs in the pane, the API in your stack's containers. You click around your app in the browser." },
+      { k: "o-alarm", chip: "Error in the browser", mood: "alarm", lines: devLines, ext: true, hint: "browser · 500", clickable: true, dur: 3600, auto: "parrot",
+        cap: "In the browser a request fails with 500. The extension sees it on localhost and tells the watcher, and the parrot startles. Your terminal shows nothing: the error is in the API container." },
+      { k: "o-think", chip: "Thinking", mood: "think", lines: devLines, ext: true, bubble: THINK_O, dur: 2600, auto: "next",
+        cap: "Parrot gives Claude the request from the browser. Claude reads the api-1 log and the code itself, with read-only checks." },
+      { k: "o-answer", chip: "Answer", mood: "talk", talk: true, lines: devLines, ext: true, bubble: ANSWER_O, dur: 9000, auto: "next",
+        cap: "Checked against the container log, with the file, the line and the recent change that explains it. It doesn't write a fix: that's for you or your agent." },
     ],
     ask: [
-      { k: "a-idle", chip: "Rustig", mood: "idle", lines: () => stage(4), clickable: true, dur: 2200, auto: "parrot",
-        cap: "Niets aan de hand. Je klikt op de papegaai om iets te vragen." },
-      { k: "a-seen", chip: "Wat hij zag", mood: "idle", lines: () => stage(4), bubble: SEEN_A, typeAsk: "Draait alles van deze worktree?", dur: 500, auto: "submit",
-        cap: "Zonder actuele fout toont een klik wat hij vandaag zag, en de vraagbalk. Je typt een vraag, of je plakt een fout van ergens anders." },
-      { k: "a-think", chip: "Denkt na", mood: "think", lines: () => stage(4), bubble: THINK_A, dur: 2400, auto: "next",
-        cap: "Claude krijgt je vraag met de pane, de worktree en wat parrot zag, en draait zelf docker compose ps." },
-      { k: "a-answer", chip: "Antwoord", mood: "talk", talk: true, lines: () => stage(4), bubble: ANSWER_A, dur: 7000, auto: "primary",
-        cap: "Het antwoord, gecontroleerd. Doorvragen gaat verder in hetzelfde gesprek met Claude (--resume)." },
-      { k: "a-run", chip: "Run", mood: "watch", lines: () => stage(4), type: { cmd: WORKER, out: WORKER_OUT }, dur: 300, auto: "next",
-        cap: "Je klikte op de knop. Het commando gaat met hc send naar je shell-pane." },
-      { k: "a-happy", chip: "Danst", mood: "happy", lines: askAfter, dur: 3200, auto: "next",
-        cap: "De worker draait weer. Hij danst." },
+      { k: "a-idle", chip: "Calm", mood: "idle", lines: () => stage(4), clickable: true, dur: 2200, auto: "parrot",
+        cap: "Nothing going on. You click the parrot to ask something." },
+      { k: "a-seen", chip: "What it saw", mood: "idle", lines: () => stage(4), bubble: SEEN_A, typeAsk: "Is everything in this worktree running?", dur: 500, auto: "submit",
+        cap: "Without a current error, a click shows what it saw today, and the question bar. You type a question, or paste an error from somewhere else." },
+      { k: "a-think", chip: "Thinking", mood: "think", lines: () => stage(4), bubble: THINK_A, dur: 2400, auto: "next",
+        cap: "Claude gets your question with the pane, the worktree and what parrot saw, and runs docker compose ps itself." },
+      { k: "a-answer", chip: "Answer", mood: "talk", talk: true, lines: () => stage(4), bubble: ANSWER_A, dur: 7000, auto: "primary",
+        cap: "The answer, checked. Follow-ups continue the same conversation with Claude (--resume), so it works as a chatbot. Buttons can also take you somewhere: a pane, a file at the right line, or a URL." },
+      { k: "a-run", chip: "Run", mood: "watch", lines: () => stage(4), type: [{ cmd: WORKER, out: WORKER_OUT }], dur: 300, auto: "next",
+        cap: "You clicked the button. The command goes to your shell pane with hc send." },
+      { k: "a-happy", chip: "Dancing", mood: "happy", lines: askAfter, dur: 3200, auto: "next",
+        cap: "The worker runs again. It dances." },
     ],
   };
 
@@ -768,27 +792,56 @@
     return el("div", { class: "b-head" }, [
       el("span", { class: "b-name", text: "parrot" }),
       el("span", { class: "b-meta", text: meta }),
-      el("button", { class: "b-close", type: "button", "aria-label": "Sluiten", text: "×", onclick: closeBubble }),
+      el("button", { class: "b-close", type: "button", "aria-label": "Close", text: "×", onclick: closeBubble }),
     ]);
   }
+  let countdown = null;
+  function stopCountdown() { if (countdown) { clearInterval(countdown); countdown = null; } }
   function actionBtn(a, noteEl) {
     const label = el("span", { text: tx(a.label) });
-    const kids = [label, el("code", { text: a.code })];
-    if (a.danger) kids.push(el("span", { class: "tag", text: "Wist alle data · vraagt 2 klikken" }));
+    const kids = [label];
+    if (a.steps) a.steps.forEach((s, i) => kids.push(el("code", {}, [el("span", { class: "n", text: String(i + 1) }), s])));
+    else kids.push(el("code", { text: a.code }));
+    const bar = el("span", { class: "count-bar", "aria-hidden": "true" });
+    if (a.danger) kids.push(el("span", { class: "tag", text: "Deletes all data · runs after 3 s, click again to cancel" }), bar);
     const b = el("button", { class: "act" + (a.primary ? " primary" : "") + (a.danger ? " danger" : ""), type: "button" }, kids);
+    function reset() {
+      stopCountdown();
+      b.classList.remove("is-counting");
+      label.textContent = tx(a.label);
+      bar.style.transition = "none"; bar.style.width = "0";
+    }
     b.addEventListener("click", () => {
-      if (a.danger) {
-        if (!b.classList.contains("is-armed")) { b.classList.add("is-armed"); label.textContent = tx(a.armed); return; }
-        noteEl.textContent = "In deze schets voeren we dit niet uit."; noteEl.hidden = false; return;
+      if (!a.danger) {
+        if (a.go) { go(cur + 1); return; }
+        noteEl.textContent = a.note; noteEl.hidden = false;
+        return;
       }
-      if (a.go) { go(cur + 1); return; }
-      noteEl.textContent = a.note; noteEl.hidden = false;
+      if (b.classList.contains("is-counting")) {
+        reset();
+        noteEl.textContent = "Cancelled. Nothing ran."; noteEl.hidden = false;
+        return;
+      }
+      let left = 3;
+      noteEl.hidden = true;
+      b.classList.add("is-counting");
+      label.textContent = tx(a.counting)(left);
+      bar.style.transition = "none"; bar.style.width = "100%";
+      void bar.offsetWidth;
+      if (!reduce) { bar.style.transition = "width 3s linear"; bar.style.width = "0"; }
+      stopCountdown();
+      countdown = setInterval(() => {
+        left -= 1;
+        if (left > 0) { label.textContent = tx(a.counting)(left); return; }
+        reset();
+        noteEl.textContent = "Time's up: in the mod it would run now. In this sketch nothing runs."; noteEl.hidden = false;
+      }, 1000);
     });
     return b;
   }
   function askForm(id, placeholder, onAsk) {
-    const input = el("input", { id, type: "text", placeholder, "aria-label": "Vraag aan parrot", autocomplete: "off" });
-    const form = el("form", { class: "b-ask" }, [input, el("button", { type: "submit", text: "Vraag" })]);
+    const input = el("input", { id, type: "text", placeholder, "aria-label": "Question for parrot", autocomplete: "off" });
+    const form = el("form", { class: "b-ask" }, [input, el("button", { type: "submit", text: "Ask" })]);
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       const q = input.value.trim();
@@ -802,21 +855,21 @@
     const reply = el("p", { class: "b-reply" });
     reply.hidden = true;
     const parts = [bubbleHead(spec.meta)];
-    if (spec.question) parts.push(el("p", { class: "q" }, ["Jij: ", el("b", { text: askedQ || spec.question })]));
+    if (spec.question) parts.push(el("p", { class: "q" }, ["You: ", el("b", { text: askedQ || spec.question })]));
     parts.push(
       el("span", { class: "src", text: spec.source }),
-      el("div", { class: "verify" }, [el("span", { class: "lbl ok", text: "Gecontroleerd" }), "met", el("code", { text: spec.check })]),
+      el("div", { class: "verify" }, [el("span", { class: "lbl ok", text: "Checked" }), "with", el("code", { text: spec.check })]),
       el("p", { class: "b-title", text: tx(spec.title) }),
       el("p", { class: "b-body", text: tx(spec.body) }),
-      el("p", { class: "basis", text: "Steunt op: " + spec.basis }),
+      el("p", { class: "basis", text: "Based on: " + spec.basis }),
       el("div", { class: "b-actions" }, spec.actions.map((a) => actionBtn(a, noteEl))),
       noteEl,
     );
     if (spec.question && askedQ && askedQ !== spec.question) {
-      parts.push(el("p", { class: "b-note", text: "In de schets is dit antwoord vast. In de mod gaat jouw vraag naar Claude." }));
+      parts.push(el("p", { class: "b-note", text: "In this sketch the answer is fixed. In the mod your question goes to Claude." }));
     }
     parts.push(askForm("ask-more", tx(spec.ask), (q, input) => {
-      reply.textContent = "In de mod gaat “" + q + "” met --resume naar hetzelfde gesprek met Claude. In deze schets blijft het hier.";
+      reply.textContent = "In the mod, “" + q + "” goes to the same conversation with Claude via --resume. In this sketch it stays here.";
       reply.hidden = false; input.value = "";
     }), reply);
     bubbleIn.append(...parts);
@@ -824,7 +877,7 @@
   function renderSeen(spec) {
     const list = el("ul", { class: "seen" }, spec.items.map((it) => el("li", {}, [
       el("time", { text: it.time }),
-      el("div", {}, [el("span", { class: "s-src", text: it.src }), el("span", { class: "s-state" + (it.done ? " done" : ""), text: it.done ? "opgelost" : "open" })]),
+      el("div", {}, [el("span", { class: "s-src", text: it.src }), el("span", { class: "s-state" + (it.done ? " done" : ""), text: it.done ? "fixed" : "open" })]),
       el("div", { class: "s-text", text: it.text }),
     ])));
     bubbleIn.append(
@@ -834,18 +887,33 @@
       askForm("ask", tx(spec.ask), (q) => { askedQ = q; go(cur + 1); }),
     );
   }
+  function renderRun(spec) {
+    const list = el("ol", { class: "run-steps" }, spec.steps.map((s, i) => el("li", { "data-state": "waiting", id: "run-step-" + i }, [
+      el("span", { class: "mark", "aria-hidden": "true" }),
+      el("code", { text: s }),
+      el("span", { class: "state", text: "waiting" }),
+    ])));
+    bubbleIn.append(bubbleHead(spec.meta), el("p", { class: "b-title", text: tx(spec.title) }), list);
+  }
+  function markStep(i, state) {
+    const li = document.getElementById("run-step-" + i);
+    if (!li) return;
+    li.setAttribute("data-state", state);
+    const mark = li.querySelector(".mark"), label = li.querySelector(".state");
+    mark.textContent = state === "done" ? "✓" : "";
+    label.replaceChildren(state === "done" ? "exit 0" : state === "running" ? "running" : "waiting");
+    if (state === "running") label.append(dotsEl());
+  }
   function renderBubble(st) {
+    stopCountdown();
     bubbleIn.replaceChildren();
     const spec = st.bubble;
     workEl.classList.toggle("has-bubble", !!spec);
     if (!spec) { bubble.hidden = true; return; }
-    if (spec.kind === "think") {
-      bubbleIn.append(bubbleHead(spec.meta), el("p", { class: "b-think" }, [tx(spec.text), el("span", { class: "dots", "aria-hidden": "true" }, [el("i"), el("i"), el("i")])]));
-    } else if (spec.kind === "seen") {
-      renderSeen(spec);
-    } else {
-      renderAnswer(spec);
-    }
+    if (spec.kind === "think") bubbleIn.append(bubbleHead(spec.meta), el("p", { class: "b-think" }, [tx(spec.text), dotsEl()]));
+    else if (spec.kind === "seen") renderSeen(spec);
+    else if (spec.kind === "run") renderRun(spec);
+    else renderAnswer(spec);
     bubble.hidden = false;
   }
   bubble.addEventListener("pointerdown", () => { hold = true; clearTimeout(timer); });
@@ -899,9 +967,14 @@
     renderBubble(st);
     if (st.talk) setTimeout(() => { if (my === token) parrot.setMood("idle"); }, 1700);
     if (st.type) {
-      if (!(await typeCmd(st.type.cmd, my))) return;
-      if (!(await stream(st.type.out, my))) return;
-      if (!st.type.running) { lines.push(P("", true)); renderTerm(); }
+      for (let j = 0; j < st.type.length; j++) {
+        markStep(j, "running");
+        if (!(await typeCmd(st.type[j].cmd, my))) return;
+        if (!(await stream(st.type[j].out, my))) return;
+        if (st.running) break;
+        lines.push(P("", true)); renderTerm();
+        markStep(j, "done");
+      }
     }
     if (st.typeAsk) {
       const input = bubbleIn.querySelector("#ask");
@@ -928,10 +1001,11 @@
   function closeBubble() {
     const my = ++token;
     clearTimeout(timer);
+    stopCountdown();
     bubble.hidden = true;
     workEl.classList.remove("has-bubble");
     parrot.setMood("idle");
-    caption.textContent = "Weggeklikt. Hij blijft rustig zitten tot er weer iets is.";
+    caption.textContent = "Dismissed. It sits calmly until something comes up.";
     const st = steps()[cur];
     const target = st.afterClose ? idxOf(st.afterClose) : 0;
     timer = setTimeout(() => { if (my === token && playing) go(target); }, 2600);
@@ -943,12 +1017,12 @@
   });
   function setPlaying(on) {
     playing = on;
-    playBtn.textContent = on ? "Pauzeer" : "Speel af";
+    playBtn.textContent = on ? "Pause" : "Play";
     if (on) go(cur); else clearTimeout(timer);
   }
   playBtn.addEventListener("click", () => setPlaying(!playing));
-  document.getElementById("restart").addEventListener("click", () => { playing = true; playBtn.textContent = "Pauzeer"; go(0); });
-  pirateBox.addEventListener("change", () => { if (!bubble.hidden) renderBubble(steps()[cur]); });
+  document.getElementById("restart").addEventListener("click", () => { playing = true; playBtn.textContent = "Pause"; go(0); });
+  pirateBox.addEventListener("change", () => { if (!bubble.hidden && steps()[cur].bubble && steps()[cur].bubble.kind !== "run") renderBubble(steps()[cur]); });
   document.querySelectorAll(".scen-btn").forEach((b) => b.addEventListener("click", () => {
     scen = b.dataset.scen;
     document.querySelectorAll(".scen-btn").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
@@ -976,17 +1050,18 @@
     if (on) return;
     token++;
     clearTimeout(timer);
+    stopCountdown();
     bubble.hidden = true;
     extCard.hidden = true;
     workEl.classList.remove("has-bubble");
-    caption.textContent = "Parrot staat uit. Geen meekijken, geen wachter, geen squawk en geen Claude; de hook schrijft ook niets meer weg. Klik op Parrot in de tabbalk om hem terug te zetten.";
+    caption.textContent = "Parrot is off. No watching, no watcher, no squawk and no Claude; the hook stops recording too. Click Parrot in the tab bar to turn it back on.";
   }
   toggleBtn.addEventListener("click", () => {
     if (enabled) setEnabled(false);
     else { setEnabled(true); go(cur); }
   });
 
-  playBtn.textContent = playing ? "Pauzeer" : "Speel af";
+  playBtn.textContent = playing ? "Pause" : "Play";
   buildChips();
   go(reduce ? idxOf("answer") : idxOf("alarm"));
 
