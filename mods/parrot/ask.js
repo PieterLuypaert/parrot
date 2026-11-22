@@ -32,7 +32,7 @@ export function claudeArgs({ prompt, session, model = MODEL }) {
 }
 
 export function promptFor({ question, cwd, branch, output }) {
-  const where = `folder="${cwd}"${branch ? ` branch="${branch}"` : ""}`;
+  const where = `folder="${attribute(cwd)}"${branch ? ` branch="${attribute(branch)}"` : ""}`;
   return [`<terminal ${where}>`, output || "(no output)", "</terminal>", "", question].join("\n");
 }
 
@@ -135,8 +135,8 @@ export const SUGGEST_LINES = 30;
 
 export const SUGGEST_SYSTEM = [
   "You fix mistyped and misused shell commands.",
-  "From what the person typed, its exit code, its output, the project's scripts, their aliases and functions, and the commands they use, give up to three commands they most likely meant, best first.",
-  "Only real commands for their tools and this project. Keep the arguments that were right. A tool's own suggestion in the output is usually right.",
+  "From what the person typed, its exit code, its output, the project's scripts and the commands they use, give up to three commands they most likely meant, best first.",
+  "Only real commands for their tools and this project, always written out in full: never a shell alias or a shortcut. Keep the arguments that were right. A tool's own suggestion in the output is usually right.",
   "Never suggest a command that deletes data, rewrites history or pushes, unless the person typed one.",
   "Each why is at most six words. If nothing fits, give none.",
 ].join(" ");
@@ -169,9 +169,12 @@ export function suggestArgs(prompt, model = SUGGEST_MODEL) {
   ];
 }
 
-// The prompt: the line and how it ended, the masked output, the project's scripts, the person's
-// aliases and functions, and the commands they use most. It starts with a tag, never with a dash.
-export function suggestPrompt({ line, code, cwd, output, scripts = [], history = [], aliases = [], functions = [] }) {
+// An attribute value that cannot end the attribute early.
+const attribute = (text) => mask(String(text ?? "")).replace(/"/g, "'");
+
+// The prompt: the line and how it ended, the project's scripts and the commands the person uses
+// most, all masked. It starts with a tag, never with a dash.
+export function suggestPrompt({ line, code, cwd, output, scripts = [], history = [] }) {
   const used = new Map();
   for (const entry of history) {
     const first = String(entry).trim().split(/\s+/)[0];
@@ -180,11 +183,9 @@ export function suggestPrompt({ line, code, cwd, output, scripts = [], history =
   const top = [...used].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([name, count]) => `${name} (${count})`).join(", ");
   const recent = history.slice(-20).map((entry) => mask(entry)).join("\n");
   return [
-    `<typed exit_code="${code}" folder="${cwd}">${line.trim()}</typed>`,
+    `<typed exit_code="${code}" folder="${attribute(cwd)}">${mask(line.trim())}</typed>`,
     `<output>\n${tail(output, SUGGEST_LINES) || "(none)"}\n</output>`,
     `<scripts>${scripts.map((s) => s.command).join(", ") || "(none)"}</scripts>`,
-    `<their_aliases>${aliases.slice(0, 80).join(", ") || "(none)"}</their_aliases>`,
-    `<their_functions>${functions.slice(0, 80).join(", ") || "(none)"}</their_functions>`,
     `<commands_they_use>${top || "(unknown)"}</commands_they_use>`,
     `<recent_lines>\n${recent || "(none)"}\n</recent_lines>`,
   ].join("\n");

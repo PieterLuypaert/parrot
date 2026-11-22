@@ -1,5 +1,5 @@
-# parrot's zsh hook: tells parrot how each command ended, so it can startle at an error and suggest
-# the command you meant after a typo. install.sh sources it from ~/.zshrc. It writes only under
+# parrot's zsh hook: tells parrot how each command ended, so it can startle at an error and have your
+# Claude suggest the command you meant after a typo. install.sh sources it from ~/.zshrc. It writes only under
 # ~/.parrot (or $PARROT_HOME), nothing while ~/.parrot/off exists, and starts no process per command.
 [[ -o interactive ]] || return 0
 zmodload zsh/datetime 2>/dev/null || return 0
@@ -30,11 +30,11 @@ _parrot_precmd() {
   _parrot_cmd=""
   [[ -e $home/off ]] && return 0
   local dir=$home/events
-  [[ -d $dir ]] || mkdir -p -- "$dir" 2>/dev/null || return 0
-  # After a command that failed, what your Claude needs to tell what you meant: your aliases (a:),
-  # your functions (f:) and your recent history. Ctrl-C, a closed pipe and Ctrl-Z are no errors.
+  # Only you can read it: your history lands here.
+  [[ -d $dir ]] || mkdir -m 700 -p -- "$dir" 2>/dev/null || return 0
+  # After a command that failed, your recent history, so your Claude knows which commands you use.
+  # Ctrl-C, a closed pipe and Ctrl-Z are no errors.
   if (( code != 0 && code != 130 && code != 141 && code != 146 && code != 148 )); then
-    { print -rl -- ${(k)aliases/#/a:} ${${(k)functions:#_*}/#/f:} } >| "$dir/$$.names" 2>/dev/null
     fc -ln -300 >| "$dir/$$.history" 2>/dev/null
   fi
   local ms=$(( (EPOCHREALTIME - _parrot_start) * 1000 ))

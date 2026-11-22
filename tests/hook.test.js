@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseEvent } from "../mods/parrot/events.js";
@@ -29,23 +29,17 @@ describe("hook.zsh", () => {
     expect(event.cwd.length).toBeGreaterThan(0);
   });
 
-  test("after a command zsh cannot find, also writes your functions and aliases for Claude", () => {
-    const home = mkdtempSync(join(tmpdir(), "parrot-hook-"));
-    run(home, ["gitce status"]);
-    const { dir, file, event } = eventOf(home);
-    expect(event.code).toBe(127);
-    const names = readFileSync(join(dir, file.replace(".json", ".names")), "utf8").split("\n");
-    expect(names).toContain("f:parrot-put");
-    expect(names.some((name) => name.startsWith("f:_"))).toBe(false);
-  });
-
-  test("writes your names after any failure, and none after Ctrl-C", () => {
+  test("after a command that failed, writes your history only for you to read, and none after Ctrl-C", () => {
     const failed = mkdtempSync(join(tmpdir(), "parrot-hook-"));
-    run(failed, ["false"]);
-    expect(existsSync(join(eventOf(failed).dir, eventOf(failed).file.replace(".json", ".names")))).toBe(true);
+    run(failed, ["gitce status"]);
+    const { dir, file, event } = eventOf(failed);
+    expect(event.code).toBe(127);
+    expect(existsSync(join(dir, file.replace(".json", ".history")))).toBe(true);
+    expect(existsSync(join(dir, file.replace(".json", ".names")))).toBe(false);
+    expect(statSync(dir).mode & 0o777).toBe(0o700);
     const stopped = mkdtempSync(join(tmpdir(), "parrot-hook-"));
     run(stopped, ["(exit 130)"]);
-    expect(existsSync(join(eventOf(stopped).dir, eventOf(stopped).file.replace(".json", ".names")))).toBe(false);
+    expect(existsSync(join(eventOf(stopped).dir, eventOf(stopped).file.replace(".json", ".history")))).toBe(false);
   });
 
   test("writes nothing while parrot is off", () => {

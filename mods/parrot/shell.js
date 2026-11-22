@@ -1,5 +1,5 @@
-// What parrot reads about your shell and project for your Claude, and how a command goes on your
-// prompt. No Herdr imports, so it is tested with bun test.
+// What parrot reads about your project for your Claude, and how a command goes on your prompt. No
+// Herdr imports, so it is tested with bun test.
 
 // The project's scripts and how to run them: package.json with the package manager its lockfile
 // names, and a Makefile's targets.
@@ -17,18 +17,6 @@ export function scriptsFrom({ packageJson, lockfiles = [], makefile }) {
     scripts.push({ name: target, command: `make ${target}` });
   }
   return scripts.filter((s) => s.name);
-}
-
-// The names the zsh hook wrote after a failed command: a:alias and f:function.
-export function namesFrom(text) {
-  const names = { aliases: [], functions: [] };
-  for (const line of String(text ?? "").split("\n")) {
-    const [kind, name] = [line.slice(0, 2), line.slice(2).trim()];
-    if (!name) continue;
-    if (kind === "a:") names.aliases.push(name);
-    else if (kind === "f:") names.functions.push(name);
-  }
-  return names;
 }
 
 // A command as one single-quoted shell word, for parrot-put.

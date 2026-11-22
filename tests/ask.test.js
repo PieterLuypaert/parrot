@@ -15,19 +15,23 @@ describe("asking Claude what you meant", () => {
     expect(args.at(-1)).toBe("<typed>gitce</typed>");
   });
 
-  test("gives Claude the line, the masked output, the scripts, your aliases and functions, and your habits", () => {
+  test("gives Claude the line, the masked output, the scripts and your habits, never your aliases", () => {
     const prompt = suggestPrompt({
       line: "pnpm tset", code: 1, cwd: "/code/shop", output: "Did you mean \"pnpm test\"?",
       scripts: [{ command: "pnpm test" }], history: ["git status", "git status", "export TOKEN=abc123secret", "pnpm dev"],
-      aliases: ["gst", "gco"], functions: ["mkcd"],
     });
     expect(prompt.startsWith("<typed")).toBe(true);
     expect(prompt).toContain('exit_code="1"');
     expect(prompt).toContain("pnpm test");
-    expect(prompt).toContain("<their_aliases>gst, gco</their_aliases>");
-    expect(prompt).toContain("<their_functions>mkcd</their_functions>");
     expect(prompt).toContain("git (2)");
     expect(prompt).not.toContain("abc123secret");
+    expect(prompt).not.toContain("alias");
+  });
+
+  test("masks a secret in the line you typed and keeps the folder one attribute", () => {
+    const prompt = suggestPrompt({ line: "exprot OPENAI_API_KEY=sk-live-abcdefghijklmnop", code: 127, cwd: '/code/my "odd" dir', output: "" });
+    expect(prompt).not.toContain("abcdefghijklmnop");
+    expect(prompt).toContain("folder=\"/code/my 'odd' dir\"");
   });
 
   test("reads Claude's suggestions, or says why there are none", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { namesFrom, scriptsFrom, shellQuote } from "../mods/parrot/shell.js";
+import { scriptsFrom, shellQuote } from "../mods/parrot/shell.js";
 
 describe("scriptsFrom", () => {
   test("runs package.json's scripts with the package manager its lockfile names", () => {
@@ -17,12 +17,6 @@ describe("scriptsFrom", () => {
   test("has nothing for a broken or missing package.json", () => {
     expect(scriptsFrom({ packageJson: "{nope" })).toEqual([]);
     expect(scriptsFrom({})).toEqual([]);
-  });
-});
-
-describe("namesFrom", () => {
-  test("reads the hook's aliases and functions", () => {
-    expect(namesFrom("a:gst\nf:mkcd\nc:git\n\n")).toEqual({ aliases: ["gst"], functions: ["mkcd"] });
   });
 });
 
