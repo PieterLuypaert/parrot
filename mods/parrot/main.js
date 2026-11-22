@@ -21,13 +21,13 @@ import {
   checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, setShared,
   shared, terminals, theme, watchFolder,
 } from "herdr";
-import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, samePlace, shows, watched } from "./mood.js";
+import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shows, watched } from "./mood.js";
 import {
   OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
 import { alertFor, headline, parseEvent, questionFor, reaction, wantsClaude } from "./events.js";
-import { namesFrom, scriptsFrom, shellQuote } from "./shell.js";
+import { scriptsFrom, shellQuote } from "./shell.js";
 
 const FRAMES = "mods/parrot/frames/";
 const SIZE = 96;
@@ -71,10 +71,20 @@ const chats = () => shared(CHATS) ?? {};
 const busy = () => shared(BUSY) ?? {};
 const stop = (_e, cx) => cx.stop_propagation();
 
-// The chat opens left of the parrot at `at`, its tail at the parrot's head.
+// The chat opens left of the parrot at `at`, its tail at the parrot's head. The alert beside the
+// parrot closes first: the chat shows it itself, and the two would sit on top of each other.
 function openChat(at) {
+  const alertWindow = shared(ALERT_WINDOW);
+  if (alertWindow) closeOverlay(alertWindow);
   openOverlay({ mod: "parrot", props: { chat: true }, kind: "window", frame: "none", width: CHAT_W, height: CHAT_H, at: { x: Math.max(0, at.x + 10 - CHAT_W), y: at.y } });
 }
+
+// An alert the person is still to act on; one whose suggestion they took waits, out of sight, for
+// the next command in that terminal, to dance when it works.
+const openAlertNow = () => {
+  const alert = shared(ALERT);
+  return alert && !alert.taken ? alert : null;
+};
 
 // What the parrot says about an error opens there too, as big as what it says.
 function openAlert(at) {
@@ -85,13 +95,24 @@ const parrotHome = () => `${home()}/.parrot`;
 const lines = (text) => String(text ?? "").split("\n").map((line) => line.trim()).filter(Boolean);
 
 // A suggestion goes on the terminal's prompt without running, and that pane gets the focus, so
-// Enter runs it.
-function putCommand(address, command) {
-  setShared(ALERT, null);
-  hc(["send", address, ` parrot-put ${shellQuote(command)}`])
+// Enter runs it. Only at the prompt: with vim, a REPL or a build running there, the text would go to
+// that program. The alert stays, out of sight, so the parrot dances when the command works.
+function putCommand(alert, command) {
+  const terminal = terminals().find((one) => one.address === alert.terminal);
+  if (!terminal) {
+    notify({ title: "That terminal is gone", body: "Parrot cannot put the command there any more.", level: "warning" });
+    setShared(ALERT, null);
+    return;
+  }
+  if (runsCommand(terminal)) {
+    notify({ title: "Something still runs in that terminal", body: "Parrot puts the command on the prompt once you are back at it: click again then.", level: "info" });
+    return;
+  }
+  setShared(ALERT, { ...alert, taken: true });
+  hc(["send", alert.terminal, ` parrot-put ${shellQuote(command)}`])
     .then((sent) => { if (sent.code !== 0) throw new Error(tail(sent.stderr, 1) || `hc send ended with ${sent.code}`); })
     .catch((error) => notify({ title: "Parrot could not reach the terminal", body: String(error?.message ?? error), level: "error" }));
-  run("pane.focus", { terminal: address });
+  run("pane.focus", { terminal: alert.terminal });
 }
 
 // The git project a folder belongs to, so one chat covers it; outside git the folder itself.
@@ -231,36 +252,54 @@ export default class Parrot extends View {
   // While parrot is off, ~/.parrot/off tells the zsh hook to write nothing.
   markOff(off) {
     const dir = parrotHome();
-    const change = off ? exec("sh", ["-c", 'mkdir -p "$1" && touch "$1/off"', "sh", dir]) : exec("rm", ["-f", `${dir}/off`]);
+    const change = off ? exec("sh", ["-c", 'mkdir -m 700 -p "$1" && touch "$1/off"', "sh", dir]) : exec("rm", ["-f", `${dir}/off`]);
     change
       .then((done) => { if (done.code !== 0) throw new Error(tail(done.stderr, 1) || `ended with ${done.code}`); })
       .catch((error) => notify({ title: "Parrot could not tell the zsh hook", body: String(error?.message ?? error), level: "error" }));
   }
 
-  // The zsh hook writes how each command ended under ~/.parrot/events; the button follows it.
+  // The zsh hook writes how each command ended under ~/.parrot/events; the button follows it. A
+  // watch Herdr refuses or takes back is tried again after a moment, so parrot never goes deaf.
   watchEvents(cx) {
     const dir = `${parrotHome()}/events`;
     this.seen = {};
     cx.spawn(async (cx) => {
-      const made = await exec("mkdir", ["-p", dir]);
-      if (made.code !== 0) {
-        notify({ title: "Parrot cannot follow your terminals", body: `It could not make ${dir}: ${tail(made.stderr, 1)}`, level: "error" });
-        return;
-      }
+      let warned = false;
       for (;;) {
-        const changed = await watchFolder(dir);
-        // cx first: after a reload, the old build's loop ends here instead of reacting twice.
-        cx.notify();
-        for (const path of changed) {
-          if (!path.endsWith(".json")) continue;
-          try {
-            await this.onEvent(path, dir);
-          } catch (error) {
-            notify({ title: "Parrot missed a command", body: String(error?.message ?? error), level: "warning" });
-          }
+        try {
+          await this.prepareEvents(dir);
+          const changed = await watchFolder(dir);
+          // cx first: after a reload, the old build's loop ends here instead of reacting twice.
+          cx.notify();
+          for (const path of changed) if (path.endsWith(".json")) await this.onEventSafely(path, dir);
+          warned = false;
+        } catch (error) {
+          if (!warned) notify({ title: "Parrot lost sight of your terminals", body: `${error?.message ?? error}. It tries again.`, level: "warning" });
+          warned = true;
+          await cx.sleep(5000);
         }
       }
     });
+  }
+
+  // The folder only you can read, without the files of shells that are gone.
+  async prepareEvents(dir) {
+    if (this.prepared) return;
+    const made = await exec("sh", ["-c", 'mkdir -m 700 -p "$1/events" && chmod 700 "$1" "$1/events"', "sh", parrotHome()]);
+    if (made.code !== 0) throw new Error(`could not make ${dir}: ${tail(made.stderr, 1)}`);
+    const listing = await exec("ls", [dir]);
+    const alive = new Set(terminals().map((one) => String(one.pid)));
+    const gone = lines(listing.stdout).filter((name) => /^\d+\./.test(name) && !alive.has(name.split(".")[0]));
+    if (gone.length) await exec("rm", ["-f", ...gone.map((name) => `${dir}/${name}`)]);
+    this.prepared = true;
+  }
+
+  async onEventSafely(path, dir) {
+    try {
+      await this.onEvent(path, dir);
+    } catch (error) {
+      notify({ title: "Parrot missed a command", body: String(error?.message ?? error), level: "warning" });
+    }
   }
 
   // A command ended in a terminal: startle, dance or calm down, for the tab you look at only.
@@ -280,7 +319,7 @@ export default class Parrot extends View {
     // other failure gets no suggestions, only Ask Parrot why.
     const output = await this.readOutput(terminal.address);
     const asking = wantsClaude(event, output);
-    setShared(ALERT, { ...alertFor(event, { terminal: terminal.address, id: messageId() }), asking });
+    setShared(ALERT, { ...alertFor(event, { terminal: terminal.address, id: messageId(), output }), asking });
     if (!asking) return;
     const alert = shared(ALERT);
     const context = await this.contextOf(event, dir);
@@ -288,28 +327,27 @@ export default class Parrot extends View {
       .catch((error) => notify({ title: "Parrot could not ask your Claude", body: String(error?.message ?? error), level: "warning" }));
   }
 
-  // Your history and names as the hook wrote them, and the project's scripts.
+  // Your history as the hook wrote it, and the project's scripts.
   async contextOf(event, dir) {
-    const base = `${dir}/${event.pid}`;
-    const [names, history, packageJson, makefile, listing] = await Promise.all([
-      readTextFile(`${base}.names`), readTextFile(`${base}.history`),
+    const [history, packageJson, makefile, listing] = await Promise.all([
+      readTextFile(`${dir}/${event.pid}.history`),
       readTextFile(`${event.cwd}/package.json`), readTextFile(`${event.cwd}/Makefile`),
       exec("ls", ["-a", event.cwd], { timeout: 5000 }),
     ]);
     const lockfiles = listing.code === 0 ? lines(listing.stdout) : [];
-    return { history: lines(history), ...namesFrom(names), scripts: scriptsFrom({ packageJson, lockfiles, makefile }) };
+    return { history: lines(history), scripts: scriptsFrom({ packageJson, lockfiles, makefile }) };
   }
 
   // A quick question to your Claude on a fast model. Its guesses become the alert's while it is still
   // the same one; when Claude cannot answer, the alert says why.
-  async askWhatYouMeant(alert, { output, scripts, history, aliases, functions }) {
+  async askWhatYouMeant(alert, { output, scripts, history }) {
     const bin = await this.claudeBin();
     let result;
     if (!bin) {
       result = { error: `Parrot could not find the claude command (${this.claudeMiss}).` };
     } else {
       try {
-        const prompt = suggestPrompt({ line: alert.cmd, code: alert.code, cwd: alert.cwd, output, scripts, history, aliases, functions });
+        const prompt = suggestPrompt({ line: alert.cmd, code: alert.code, cwd: alert.cwd, output, scripts, history });
         result = parseSuggestions(await exec(bin, suggestArgs(prompt), { cwd: alert.cwd, timeout: SUGGEST_TIMEOUT }));
       } catch (error) {
         result = { error: `Claude could not suggest: ${error?.message ?? error}` };
@@ -369,7 +407,7 @@ export default class Parrot extends View {
   // What the parrot says about an error opens beside it while there is an alert and the chat is
   // closed; an open chat shows the alert itself.
   syncAlert() {
-    const alert = shared(ALERT);
+    const alert = openAlertNow();
     const win = shared(ALERT_WINDOW);
     const chatOpen = Boolean(shared(CHAT));
     if (win && (!alert || chatOpen)) {
@@ -498,7 +536,7 @@ export default class Parrot extends View {
       idleFor: Date.now() - this.lastActive,
       preview: this.preview,
       thinking: Object.keys(busy()).length > 0,
-      alarm: Boolean(shared(ALERT)),
+      alarm: Boolean(openAlertNow()),
       dancing: Date.now() - (shared(DANCE_AT) ?? 0) < DANCE_BEAT * DANCE_BEATS,
     });
   }
@@ -506,7 +544,7 @@ export default class Parrot extends View {
   // Startled, it shakes once for each new alert; dancing, it steps by a short timer that stops by
   // itself. The other moods move natively.
   animate(cx) {
-    const alert = shared(ALERT);
+    const alert = openAlertNow();
     if (alert && alert.id !== this.alertSeen) {
       this.alertSeen = alert.id;
       this.shaking = true;
@@ -549,7 +587,7 @@ export default class Parrot extends View {
     if (!checking()) this.animate(cx);
     const picture = FRAMES + frame(this.shown, this.blinking, this.beat ?? 0) + ".png";
     const above = { sleep: ["z", "z z", "z z Z", ""], think: [".", "..", "...", ""] }[this.shown];
-    const alert = shared(ALERT);
+    const alert = openAlertNow();
     const tip = alert ? `${headline(alert)}: click for help` : this.shown === "sleep" ? "Parrot is asleep: click to wake it and ask something" : "Ask Parrot about this project (⌥⇧⌘P)";
     let bird = div().relative().top(0).left(0).child(image(picture).w(SIZE).h(SIZE));
     if (this.shaking) bird = bird.loop("left", { from: -2, to: 2, period: 120 });
@@ -596,7 +634,7 @@ export default class Parrot extends View {
 
   // Beside the parrot, in the chat's pixel look, as big as what it says. It never drags.
   alertWindow(t) {
-    const alert = shared(ALERT);
+    const alert = openAlertNow();
     if (!alert) return div();
     return h_flex().id("parrot-alert").w_full().items_start().on_mouse_down("left", stop)
       .child(div().relative().flex_1().min_w(0).pr(SHADOW).pb(SHADOW)
@@ -624,7 +662,7 @@ export default class Parrot extends View {
       .children(alert.suggestions.map((suggestion, i) => v_flex().id(`parrot-suggestion-${where}-${i}`).gap(2).px(10).py(6)
         .border_2().border_color(t.border).hover((s) => s.border_color(RED)).cursor_pointer()
         .tooltip("Put it on the prompt: Enter runs it")
-        .on_click((_e, cx) => { putCommand(alert.terminal, suggestion.command); cx.notify(); })
+        .on_click((_e, cx) => { putCommand(alert, suggestion.command); cx.notify(); })
         .child(div().w_full().text_size(13).font_bold().child(suggestion.command))
         .child(div().w_full().text_size(11).text_color(t.dim).child(suggestion.why))))
       .child(h_flex().gap(8).items_center()
@@ -701,7 +739,8 @@ export default class Parrot extends View {
     const { cwd, branch, root } = this.place(cx);
     const messages = (root && chats()[root]?.messages) || [];
     const thinking = Boolean(root && busy()[root]);
-    const count = messages.length + (thinking ? 1 : 0);
+    const alert = openAlertNow();
+    const count = messages.length + (thinking ? 1 : 0) + (alert ? 1 : 0);
     if (count !== this.seen) {
       this.seen = count;
       if (count > 0) this.scroll.scroll_to_item(count - 1);
@@ -721,9 +760,7 @@ export default class Parrot extends View {
           .border_2().border_color(RED_DARK)
           .child(this.stripe())
           .child(this.chatHeader(t, where, root, messages.length > 0 && !thinking))
-          .child(this.chatList(t, messages, thinking, root))
-          .when(Boolean(shared(ALERT)), (el) => el.child(div().flex_none().px(12).py(10).border_t_2().border_color(t.border)
-            .child(this.alertCard(t, shared(ALERT), "chat"))))
+          .child(this.chatList(t, messages, thinking, root, alert))
           .child(this.composer(t, thinking))))
       .child(this.tail());
   }
@@ -749,14 +786,17 @@ export default class Parrot extends View {
       .child(this.chatButton(t, "parrot-chat-close", "×", "Close (Esc)", () => closeOverlay(props()?.overlay)));
   }
 
-  chatList(t, messages, thinking, root) {
+  // The conversation, with an alert as its latest item: it scrolls with the rest, so nothing is
+  // squeezed, and it takes the place of the intro in a chat that is still empty.
+  chatList(t, messages, thinking, root, alert) {
     return v_flex().id("parrot-chat-list").flex_1().min_h(0).overflow_y_scrollbar().track_scroll(this.scroll).px(12).py(12).gap(12)
-      .when(messages.length === 0 && !thinking, (el) => el.child(this.emptyChat(t, root)))
+      .when(messages.length === 0 && !thinking && !alert, (el) => el.child(this.emptyChat(t, root)))
       .children(messages.map((message, i) => this.message(t, message, i)))
       .when(thinking, (el) => el.child(h_flex().gap(8).items_center().text_size(12.5).text_color(t.muted)
         .child(image(FRAMES + "think.png").w(32).h(32))
         .child(div().child("Parrot is thinking"))
-        .child(div().w(18).frames(["", ".", "..", "..."], 380))));
+        .child(div().w(18).frames(["", ".", "..", "..."], 380))))
+      .when(Boolean(alert), (el) => el.child(div().p(10).border_2().border_color(RED_DARK).child(this.alertCard(t, alert, "chat"))));
   }
 
   composer(t, thinking) {
