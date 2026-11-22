@@ -40,7 +40,7 @@ The alert opens beside the parrot, or in the chat while that is open. × dismiss
 
 Ask about the project of the terminal in your tab: how something works, where something lives, why a command failed. The chat opens beside the parrot in its colours, stays put, and moves along when the parrot does. It follows the tab, with one conversation per git project (a `cd` into a subfolder keeps it); follow-up questions continue it, and **Clear chat**, or typing `/clear`, starts that project over.
 
-Messages are chat bubbles in the parrot's colours: yours in its wing blue, its answers in a soft red. Code sits in a rounded block in your terminal's font, and under each shell command is a green **↵ Put on prompt**: one click puts it on the terminal's prompt, not yet run, with that pane focused, so Enter runs it. A command that deletes, overwrites or pushes gets a red link. Other code gets **⧉ Copy**.
+Messages are square bubbles in the parrot's colours, with a 2px border like the chat's own frame: yours in its wing blue, its answers in a soft red. Code sits in a block in your terminal's font, and under each shell command is a green **↵ Put on prompt**: one click puts it on the terminal's prompt, not yet run, with that pane focused, so Enter runs it. A command that deletes, overwrites or pushes gets a red link. Other code gets **⧉ Copy**.
 
 Every question goes to your own Claude, on your own subscription, the way Chartroom asks it: `claude -p` in the terminal's folder, with no MCP servers and none of your hooks or plugins. Nothing goes to Claude until you ask. The parrot thinks while it waits; an answer that reads files takes half a minute or so on Sonnet.
 
