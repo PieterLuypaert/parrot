@@ -23,14 +23,16 @@ It links the mod, binds `⌥⌘P` and `⌥⇧⌘P`, adds a **Parrot** button to 
 
 ## When a command fails
 
-The zsh hook tells parrot how each command in your shells ended: the command, its exit code, the folder and how long it took, written under `~/.parrot/events`. It starts no process per command and writes nothing while parrot is off. Parrot reacts only to the tab you look at.
+The zsh hook tells parrot how each command in your shells ended: the command, its exit code, the folder and how long it took, and after a failure your recent history, written under `~/.parrot/events`, a folder only you can read. It starts no process per command and writes nothing while parrot is off. Parrot reacts only to the tab you look at, and clears out the files of shells that are gone.
 
 - **A typo** (`gitce`, `pnmp lnit`), or **a command used wrong** (`git statsu`, an unknown option, a missing script): the parrot startles, asks your Claude at once what you meant, and shows its guesses, best first. Click one and it goes on your prompt, not yet run, with that pane focused: Enter runs it.
   - The suggestions come only from your Claude, on your own subscription with a fast model (Haiku, a few seconds), with no tools and no session kept.
-  - Claude gets the line, its exit code, the last 30 lines of output with secrets masked (a tool's own "Did you mean" is in there), the project's scripts (package.json and Makefile), your aliases and functions, and the commands you use most.
+  - Claude gets the line and the last 30 lines of output with secrets masked (a tool's own "Did you mean" is in there), the exit code, the project's scripts (package.json and Makefile) and the commands you use most. It always suggests the full command, never one of your aliases.
   - When Claude cannot answer, the alert says why, and Ask Parrot is still there.
 - **Another failure**, such as a failing test run or build: the parrot startles and offers **Ask Parrot why**, which asks your Claude in the chat, with the terminal's output. Nothing goes to Claude before you click.
-- **The next command in that terminal works**: it dances. Ctrl-C, a closed pipe and Ctrl-Z are no errors.
+- **The next command in that terminal works**: it dances, also after you took a suggestion.
+- **No errors**: Ctrl-C, a closed pipe and Ctrl-Z, and exit code 1 from a command that answers no (`grep` without a match, `test`, `diff`, `git diff --quiet`). A script that ends with 127 because a program it calls is missing is a failure, not a typo.
+- **A suggestion goes only to a prompt**: while vim, a REPL or a build still runs in that terminal, parrot says so instead of typing into it.
 
 The alert opens beside the parrot, or in the chat while that is open. × dismisses it.
 

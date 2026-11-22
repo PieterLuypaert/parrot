@@ -11,7 +11,9 @@ It reacts to your terminal.
 ### Added
 
 - A zsh hook (`hook.zsh`, loaded from `~/.zshrc` by `install.sh`) that tells parrot how each command ended. It starts no process per command and writes nothing while parrot is off.
-- After a typo or a command used wrong, the parrot startles and your Claude suggests the command you probably meant: Haiku on your own subscription, asked at once, with no tools and no session kept, from the line, its exit code, the masked output, the project's scripts (package.json and Makefile), your aliases and functions, and the commands you use. A click puts it on the prompt, not yet run, with that pane focused.
+- After a typo or a command used wrong, the parrot startles and your Claude suggests the command you probably meant, always written in full and never as one of your aliases: Haiku on your own subscription, asked at once, with no tools and no session kept, from the masked line and output, its exit code, the project's scripts (package.json and Makefile) and the commands you use. A click puts it on the prompt, not yet run, with that pane focused, and only while the terminal is at its prompt.
+- Exit code 1 from a command that answers no (`grep`, `test`, `diff`, `git diff --quiet`) is no error, and only zsh's own "command not found" counts as a typo.
+- `~/.parrot` is readable only by you, and the files of shells that are gone are cleared out.
 - After another failure, such as a failing test run, it startles and offers **Ask Parrot why**, which asks your Claude in the chat with the terminal's output.
 - It dances when the next command in that terminal works. Ctrl-C, a closed pipe and Ctrl-Z are no errors.
 - A startled and a dancing parrot, and `parrot.alarm` and `parrot.dance` to preview them.
