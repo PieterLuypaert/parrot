@@ -1,12 +1,12 @@
 # Parrot: plan
 
-Planversie 1, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
+Planversie 2, 22 november 2026. Wijzigingen aan dit plan staan in de git-geschiedenis van deze map; de schets toont dezelfde planversie.
 
 Een pixel-art-papegaai in de Herdr-app die meekijkt terwijl je werkt. Ziet hij een fout, in je terminal of daarbuiten (de logs van je stack, de CI van je PR, je lokale app in de browser), dan schrikt hij op. Klik je op hem, dan zoekt je eigen Claude uit wat er misging en toont in een spraakwolkje de uitleg, met een fix als commando die je met één klik draait. Je kunt hem ook altijd zelf iets vragen.
 
 Agent-panes (Claude Code, Codex, ...) slaat hij over, want daar zit al een Claude.
 
-Visuele schets: `sketch/moods.html`, gepubliceerd als artifact: https://claude.ai/artifact/1fH5s1mvty964pwgxpqzQ7
+Visuele schets: `sketch/moods.html`, gepubliceerd als artifact (in het Engels): https://claude.ai/artifact/1fH5s1mvty964pwgxpqzQ7
 
 ## Wat je ziet
 
@@ -36,6 +36,11 @@ De vraagbalk staat altijd in het wolkje. Klik op de papegaai, of druk ⌥⇧⌘P
 - **Context die vanzelf meegaat:** de pane met focus (map, branch, laatste output), wat hij recent zag, en `git status` van die repo. Andere panes alleen als je erom vraagt.
 - **Doorvragen:** elk gesprek is een Claude-sessie. Het eerste antwoord geeft een session-id (`claude -p --output-format json`), en vervolgvragen gaan verder met `--resume <id>`. Er is één gesprek per pane, tot je het wolkje sluit.
 - **Plakken:** een fout van ergens anders (Slack, Sentry, een mail) plak je in de vraagbalk. Hij legt ze uit in de context van de repo van de pane.
+- **Als chatbot:** het wolkje is een gesprek. Je vragen en zijn antwoorden blijven erin staan tot je het sluit. Voor een langer gesprek opent een knop een groter venster (`openOverlay({ kind: "window" })`) met de hele geschiedenis.
+- **Navigeren:** een antwoord kan knoppen hebben die je ergens heen brengen, telkens met één klik:
+  - naar de pane of tab waar iets draait (`run("pane.focus", ...)`, `run("tab.select", ...)`). Vraag "waar draait de api van feat/login?" en hij brengt je naar die pane;
+  - naar een bestand op de juiste regel in Cursor (`cursor -g <bestand>:<regel>`);
+  - naar de PR, de CI-run of de pagina in je browser (`open <url>`).
 - **Zelfde regels als bij de uitleg:** Claude leest alleen, draait alleen controles uit de vaste lijst, en commando's lopen pas na jouw klik.
 
 ## Hoe het werkt
@@ -50,7 +55,11 @@ Na een klik:
 
 1. **Context verzamelen.** Bij een terminalfout knipt parrot de output van dat ene commando uit `hc read`, tussen de promptregels. Bij andere fouten neemt hij de logregels, de CI-log of de browserfout uit het event. Daarbij komen telkens de map, de branch en `git status`.
 2. **Geheimen maskeren en het Claude vragen:** `claude -p --output-format json`, met alleen tools die lezen en de vaste lijst controles (zie Nauwkeurigheid).
-3. **Het antwoord tonen.** Het wolkje toont het antwoord met het label Gecontroleerd of Vermoeden, de regels waarop het steunt en de voorgestelde commando's als knoppen. **Run** stuurt een commando met `hc send <terminal> "<cmd>"` naar de pane.
+3. **Het antwoord tonen.** Het wolkje toont het antwoord met het label Gecontroleerd of Vermoeden, de regels waarop het steunt en de voorgestelde fix als knop.
+4. **De fix draaien, met één klik.** Een fix kan uit meerdere stappen bestaan, maar het blijft één knop.
+   - Parrot stuurt de eerste stap met `hc send <terminal> "<cmd>"` en wacht tot de hook exitcode 0 meldt voor die terminal. Dan stuurt hij de volgende stap.
+   - Het wolkje toont welke stap loopt en welke klaar is.
+   - Faalt een stap, dan stopt hij en schrikt hij opnieuw op, met die fout als context.
 
 ## Aan en uit
 
@@ -120,7 +129,8 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 | Een helper op de achtergrond laten draaien | `hc run --bg --name parrot-watch` start hem als terminal van herdr-core; `hc kill parrot-watch` stopt hem |
 | Volgen wanneer terminals veranderen | `hc events` geeft elke verandering als JSON-regel |
 | Je eigen Claude vragen, ook met doorvragen | `exec("claude", ["-p", ...])`, maximaal 10 minuten per call; `--resume <session-id>` voor een vervolgvraag |
-| Een commando in de pane laten lopen | `hc send <t> <tekst>` (plakt en drukt Enter, wacht als je zelf iets half getypt hebt) |
+| Een fix in de pane laten lopen, stap voor stap | `hc send <t> <tekst>` (plakt en drukt Enter, wacht als je zelf iets half getypt hebt); na elke stap wacht parrot op het hook-event met exitcode 0 |
+| Je ergens heen brengen | `run("pane.focus", ...)`, `run("tab.select", ...)`, `cursor -g <bestand>:<regel>`, `open <url>` |
 | Geluid maken | `playSound(<mp3>)`: een eigen squawk |
 | Een melding geven als je ergens anders kijkt | `notify()`, de toast die je al hebt |
 | Instellingen en geheugen bewaren | Gedeelde state per mod (stille modus, piratentaal aan of uit, model, stilgezette patronen) |
@@ -148,7 +158,10 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 - **Herkennen gebeurt lokaal.** De hook en de wachter gebruiken patronen, geen Claude. Er gaat niets naar Claude tot je op de papegaai klikt of iets vraagt. Je sub wordt dus alleen gebruikt als jij het wil.
 - **Wat er meegaat:** alleen de context van die ene fout of vraag (zie Hoe het werkt), met de geheimen gemaskeerd.
 - **Claude leest alleen:** Read, Grep, Glob en de vaste lijst controles. Nooit Edit, Write of vrije Bash.
-- **Run alleen na een klik.** Commando's die iets weggooien of overschrijven (`rm -rf`, `git reset --hard`, `git push --force`, `kill`, `DROP`, `docker system prune`, ...) krijgen een rood label en vragen een tweede klik.
+- **Eén klik, ook voor wat iets weggooit.** Een fix loopt pas na jouw klik, en nooit meer dan één klik.
+  - Commando's die iets weggooien of overschrijven (`rm -rf`, `git reset --hard`, `git push --force`, `kill`, `DROP`, `docker system prune`, ...) krijgen een rood label en lopen pas na 3 seconden.
+  - In die tijd annuleert een klik of Esc. Een bevestigingsklik is niet nodig.
+- **Liever zelf Enter geven?** Een instelling zet zo'n commando in je prompt zonder Enter, zodat je het nog ziet en zelf start. `hc keys` kan dat toets per toets; de spike test of dat goed gaat met spaties, `&&` en pipes.
 - **De browser-extensie** volgt alleen localhost en stuurt alleen naar `127.0.0.1`.
 - **Uit is uit:** geen hook-events, geen wachter en geen Claude.
 - **Model:** standaard een snel model voor de eerste uitleg; vervolgvragen op het model dat je kiest, zoals de Ask van chartroom.
@@ -166,6 +179,7 @@ Elk punt hieronder steunt op iets dat de Herdr-app of herdr-core vandaag geeft (
 6. **De wachter als achtergrondterminal.** Blijft een terminal van `hc run --bg` buiten je tabs, en hoe start de mod hem opnieuw na een herstart van herdr-core?
 7. **`hc events`:** meldt het ook nieuwe output, of moet de wachter panes met draaiende programma's om de paar seconden lezen?
 8. **Vals alarm:** hoeveel geven de patronen op echte dev-server- en containerlogs uit je eigen stacks?
+9. **In je prompt zonder Enter:** typt `hc keys` een commando met spaties, `&&` en pipes correct in, toets per toets?
 
 ## Bouwvolgorde
 
@@ -173,8 +187,8 @@ Elk stuk is een eigen PR die op zichzelf werkt.
 
 1. **Papegaai op de kaart:** de mod op de plek die de spike kiest, de sprite met rustig, slapen en kijkt mee, de aan/uit-knop in de tabbalk met ⌥⌘P, en `install.sh` die de knop en de toetsen toevoegt zoals bij chartroom.
 2. **Schrikken bij terminalfouten:** de zsh-hook, de events-map, opschrikken en de squawk.
-3. **Uitleg en vragen:** de klik, `hc read` met knippen tussen de promptregels, `claude -p` die alleen leest, het label Gecontroleerd of Vermoeden, de vraagbalk met doorvragen en plakken, en het maskeren van geheimen.
-4. **Run en controles:** de knoppen voor commando's, het rode label, de vaste lijst controles, dansen na een geslaagde fix.
+3. **Uitleg en vragen:** de klik, `hc read` met knippen tussen de promptregels, `claude -p` die alleen leest, het label Gecontroleerd of Vermoeden, de vraagbalk met doorvragen en plakken, het gesprek in het wolkje en in een groter venster, en het maskeren van geheimen.
+4. **Run en controles:** de fix als één knop (ook met meerdere stappen), het rode label met 3 seconden om te annuleren, knoppen die je naar een pane, bestand of URL brengen, de vaste lijst controles, en dansen na een geslaagde fix.
 5. **De wachter:** `parrot-watch`, draaiende programma's in andere panes, de logs van je stack, "Wat hij zag" en context uit git.
 6. **De CI van je PR.**
 7. **De browser-extensie** voor localhost.
@@ -201,4 +215,4 @@ Parrot volgt [semver](https://semver.org). Tot alles uit de bouwvolgorde er is, 
 - **Zodra de repo op GitHub staat:** een release per tag, zoals bij portly.
 - **Het plan** heeft een eigen planversie bovenaan. Die gaat omhoog als de koers verandert, en de schets toont dezelfde.
 
-Testen met `bun test` voor de delen zonder app: de hook-regels lezen, output knippen tussen promptregels, geheimen maskeren, foutpatronen per bron (met geanonimiseerde logs als voorbeelden), gevaarlijke commando's herkennen, het antwoord in uitleg en commando's splitsen.
+Testen met `bun test` voor de delen zonder app: de hook-regels lezen, output knippen tussen promptregels, geheimen maskeren, foutpatronen per bron (met geanonimiseerde logs als voorbeelden), gevaarlijke commando's herkennen, het antwoord in uitleg, stappen en navigatieknoppen splitsen.
