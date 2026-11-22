@@ -95,12 +95,51 @@ function titleBar(node) {
   return header && header.position !== "bottom" ? header : null;
 }
 
+// The block that holds the tab's panes: its content names the tab (content.tab) or how panes look.
+function holdsPanes(node) {
+  const content = node?.content;
+  return Boolean(content && typeof content === "object" && ("tab" in content || content.pane));
+}
+
+// The nodes from the root down to the first one `test` accepts.
+function pathTo(node, test, trail = []) {
+  if (!node || typeof node !== "object") return null;
+  const here = [...trail, node];
+  if (test(node)) return here;
+  for (const child of node.children ?? []) {
+    const path = pathTo(child, test, here);
+    if (path) return path;
+  }
+  return null;
+}
+
+// The points shown panels with a fixed width take on the right of the panes, such as Chartroom's
+// or Quarterdeck's when they are open, so the parrot never lands on one.
+export function rightPanels(layout) {
+  const path = pathTo(layout, holdsPanes) ?? pathTo(layout, (n) => n.id === "tabs-row") ?? [];
+  let taken = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const row = path[i];
+    if (row.type !== "row") continue;
+    const siblings = row.children ?? [];
+    for (const panel of siblings.slice(siblings.indexOf(path[i + 1]) + 1)) {
+      if (panel.hidden || !panel.size?.px) continue;
+      taken += panel.size.px + (row.divider?.width ?? 0);
+    }
+  }
+  return taken;
+}
+
 export function corner(width, layout, size) {
   const bar = find(layout, (n) => n.id === "tabs-row") ?? find(layout, (n) => n.id === "tabs");
   const holder = find(layout, (n) => Boolean(titleBar(n)));
   const header = holder ? titleBar(holder) : null;
   return {
-    x: Math.max(0, Math.round(width - size - MARGIN)),
+    x: Math.max(0, Math.round(width - rightPanels(layout) - size - MARGIN)),
     y: (bar?.size?.px ?? 42) + (header?.height ?? 0) + 8,
   };
+}
+
+export function samePlace(a, b) {
+  return Boolean(a && b && a.x === b.x && a.y === b.y);
 }
