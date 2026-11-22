@@ -17,13 +17,14 @@ export const SYSTEM = [
   "The person's recent terminal output comes with each question; it may have nothing to do with it.",
 ].join(" ");
 
-// Arguments for `claude -p`: an answer as JSON, read-only tools, no MCP servers, and the
-// conversation so far when there is one. The prompt starts with the terminal block, never with a
-// dash, so it is never read as an option.
+// Arguments for `claude -p`, the person's own Claude Code on their own login and subscription, as
+// Chartroom asks it: an answer as JSON, read-only tools, no MCP servers, none of their hooks or
+// plugins (--setting-sources ""), and the conversation so far when there is one. The prompt starts
+// with the terminal block, never with a dash, so it is never read as an option.
 export function claudeArgs({ prompt, session, model = MODEL }) {
   const args = [
     "-p", "--output-format", "json", "--model", model, "--system-prompt", SYSTEM,
-    "--tools", TOOLS, "--allowedTools", TOOLS, "--strict-mcp-config",
+    "--tools", TOOLS, "--allowedTools", TOOLS, "--strict-mcp-config", "--setting-sources", "",
   ];
   if (session) args.push("--resume", session);
   args.push(prompt);

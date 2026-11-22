@@ -8,6 +8,8 @@ describe("claudeArgs", () => {
     expect(args[args.indexOf("--tools") + 1]).toBe(TOOLS);
     expect(args[args.indexOf("--allowedTools") + 1]).toBe(TOOLS);
     expect(args).toContain("--strict-mcp-config");
+    expect(args[args.indexOf("--setting-sources") + 1]).toBe("");
+    expect(args).not.toContain("--bare");
     expect(args).not.toContain("--resume");
     expect(args.at(-1)).toBe("<terminal>…");
   });
