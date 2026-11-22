@@ -4,6 +4,22 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-22
+
+It reacts to your terminal.
+
+### Added
+
+- A zsh hook (`hook.zsh`, loaded from `~/.zshrc` by `install.sh`) that tells parrot how each command ended. It starts no process per command and writes nothing while parrot is off.
+- After a typo, the parrot startles and suggests the command you probably meant, found without Claude in your history, the project's scripts (package.json and Makefile), your aliases, functions and PATH. A click puts it on the prompt, not yet run, with that pane focused.
+- After another failure, it startles and offers **Ask Parrot why**, which asks your Claude in the chat with the terminal's output.
+- It dances when the next command in that terminal works. Ctrl-C, a closed pipe and Ctrl-Z are no errors.
+- A startled and a dancing parrot, and `parrot.alarm` and `parrot.dance` to preview them.
+
+### Changed
+
+- Plan version 6: the squawk moves to the finishing touches, as `playSound` only plays MP3.
+
 ## [0.2.0] - 2026-11-22
 
 Chat with parrot.
