@@ -13,6 +13,7 @@
 // - {perch: true, token}: the parrot itself, in a frameless window the button opens. A parrot whose
 //   token is not the latest closes itself, so there is never more than one.
 // - {chat: true}: the chat beside it, which a click on the parrot or ⌥⇧⌘P (parrot.chat) opens.
+//   parrot.explain asks about the current alert there, as its Ask Parrot button does.
 // `herdr-app do parrot.calm | parrot.watch | parrot.sleep | parrot.think` shows a mood for ten seconds.
 
 import { View, div, image } from "gpui-kit";
@@ -48,6 +49,7 @@ const CHATS = "parrot.chats";
 const ASK = "parrot.ask";
 const BUSY = "parrot.busy";
 const ALERT = "parrot.alert";
+const PLEA = "parrot.plea";
 const ALERT_WINDOW = "parrot.alertWindow";
 const DANCE_AT = "parrot.dance";
 const ALERT_W = 380;
@@ -127,20 +129,12 @@ async function projectRoot(cwd) {
 }
 
 // "Ask Parrot" on an alert: the chat opens and the question goes to Claude with the terminal's
-// output, as if you had typed it.
-async function askAbout(alert) {
+// output, as if you had typed it. The click only hands the alert to the button, which is always
+// there: the alert's own window closes with the click, and Herdr cancels a closed window's work.
+function askAbout(alert) {
+  setShared(PLEA, { id: messageId(), alert });
   setShared(ALERT, null);
   if (!shared(CHAT)) openChat(shared(CORNER) ?? { x: CHAT_W, y: 80 });
-  const root = await projectRoot(alert.cwd);
-  if (busy()[root]) {
-    notify({ title: "Parrot is still answering", body: "Ask again when the answer is in.", level: "info" });
-    return;
-  }
-  const question = questionFor(alert);
-  const branch = panes().find((pane) => pane.terminal === alert.terminal)?.branch ?? null;
-  setShared(CHATS, withMessage(chats(), root, { role: "you", text: question, id: messageId() }));
-  setShared(BUSY, { ...busy(), [root]: true });
-  setShared(ASK, { id: messageId(), root, cwd: alert.cwd, address: alert.terminal, branch, question });
 }
 
 export default class Parrot extends View {
@@ -178,6 +172,10 @@ export default class Parrot extends View {
           // cx first: after a reload, the old build's loop ends here instead of opening it twice.
           cx.notify();
           this.toggleChat();
+        } else if (command === "explain") {
+          cx.notify();
+          const alert = openAlertNow();
+          if (alert) askAbout(alert);
         } else if (MOODS.includes(command)) {
           this.showFor(command, cx);
         }
@@ -209,6 +207,7 @@ export default class Parrot extends View {
     this.since = Date.now();
     this.pending = 0;
     this.lastAsk = shared(ASK)?.id ?? null;
+    this.lastPlea = shared(PLEA)?.id ?? null;
     this.alertShown = null;
     if (checking()) return;
     for (const id of [shared(CHAT), shared(OVERLAY), shared(ALERT_WINDOW)]) if (id) closeOverlay(id);
@@ -373,6 +372,7 @@ export default class Parrot extends View {
   // closed otherwise, its chat too. A change it asked for gets a moment to land.
   sync(cx) {
     if (checking()) return;
+    this.takePlea(cx);
     this.takeAsk(cx);
     const want = shows({ on: shared(ON) === true, terminal: this.terminal() });
     const open = shared(OPEN) === true;
@@ -418,6 +418,28 @@ export default class Parrot extends View {
     if (!alert || win || chatOpen || this.alertShown === alert.id) return;
     this.alertShown = alert.id;
     openAlert(shared(CORNER) ?? { x: ALERT_W, y: 80 });
+  }
+
+  // An alert someone asked about: the question goes into its project's chat and to Claude, with the
+  // terminal's output, as if they had typed it.
+  takePlea(cx) {
+    const plea = shared(PLEA);
+    if (!plea || plea.id === this.lastPlea) return;
+    this.lastPlea = plea.id;
+    const { alert } = plea;
+    cx.spawn(async (cx) => {
+      const root = await projectRoot(alert.cwd);
+      if (busy()[root]) {
+        notify({ title: "Parrot is still answering", body: "Ask again when the answer is in.", level: "info" });
+        return;
+      }
+      const question = questionFor(alert);
+      const branch = panes().find((pane) => pane.terminal === alert.terminal)?.branch ?? null;
+      setShared(CHATS, withMessage(chats(), root, { role: "you", text: question, id: messageId() }));
+      setShared(BUSY, { ...busy(), [root]: true });
+      setShared(ASK, { id: messageId(), root, cwd: alert.cwd, address: alert.terminal, branch, question });
+      cx.notify();
+    });
   }
 
   // The chat hands its question over in shared state; the button asks it, so the answer lands in
