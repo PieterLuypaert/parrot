@@ -234,8 +234,8 @@ Elk stuk is een eigen PR die op zichzelf werkt.
    - je Claude zegt welk commando je waarschijnlijk bedoelde, en alleen je Claude (sinds planversie 8): Haiku, een paar seconden. Hij krijgt de regel, de exitcode, de gemaskeerde output (met de hint van de tool zelf erin), de scripts van het project, je aliassen en functies, en de commando's die je gebruikt. Kan Claude niet antwoorden, dan zegt de melding waarom;
    - één klik zet het commando in je terminal.
 4. **Commando's uit de chat op je prompt** (naar voren gehaald in planversie 9, met "Ask Parrot why" uit 0.3.0 als uitleg bij fouten):
-   - de berichten als pixel-spraakwolkjes;
-   - code in een pixelblok, en elke shell-regel één klik van je prompt (niet uitgevoerd, de pane krijgt de focus); wat iets weggooit, overschrijft of pusht staat in het rood;
+   - de berichten als chatbubbels in de kleuren van de papegaai: de jouwe blauw, de zijne zacht rood;
+   - code in een afgerond blok, met onder elk shell-commando een groene link die het op je prompt zet (niet uitgevoerd, de pane krijgt de focus); wat iets weggooit, overschrijft of pusht krijgt een rode link;
    - "Clear chat" en `/clear` maken de chat van een project leeg.
 5. **Run en controles:** de fix als één knop die hem ook draait (ook met meerdere stappen), het rode label met 3 seconden om te annuleren, het label Gecontroleerd of Vermoeden met de vaste lijst controles, en knoppen die je naar een pane, bestand of URL brengen.
 6. **Afwerking:** de squawk (een MP3), stille modus, piratentaal aan of uit, modelkeuze, README met screenshots in licht en donker.

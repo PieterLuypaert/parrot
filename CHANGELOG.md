@@ -10,7 +10,7 @@ Its fixes, one click from your prompt.
 
 ### Added
 
-- Chat answers as pixel speech bubbles, with code in a block in your terminal's font. A click on a shell command's line puts it on the terminal's prompt, not yet run, with that pane focused; a command that deletes, overwrites or pushes is red. COPY copies a whole block.
+- Chat messages as bubbles in the parrot's colours, yours blue and its answers soft red, with code in a rounded block in your terminal's font. Under each shell command, **↵ Put on prompt** puts it on the terminal's prompt, not yet run, with that pane focused; a command that deletes, overwrites or pushes gets a red link. Other code gets **⧉ Copy**.
 - **Clear chat** in the chat's header, and `/clear` (or `/new`, `/reset`) in the chat, start a project's conversation over without asking Claude.
 - `parrot.explain` asks about the current alert, as its **Ask Parrot** button does.
 
