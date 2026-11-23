@@ -4,6 +4,24 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-23
+
+Run with one click.
+
+### Added
+
+- **▶ Run** under a command in the chat and under a guess runs it in the terminal at once, with that pane focused. Under a block with several commands, **▶ Run all** runs them in order as one line that stops at the first that fails.
+- How it went shows under the block, from the hook's report of that line: **✓ Done**, or **✗ Failed** with its exit code. A guess you ran waits out of sight, so the parrot dances when it works.
+- A command that deletes, overwrites, pushes, stops processes or runs a script from the internet counts down three seconds first, and a click or Esc stops it. A guess like that only goes on the prompt.
+
+### Changed
+
+- Run only sends a command that reads as it looks: complete on one line, with no `!`, no heredoc and nothing to fill in, such as `<url>`, `YOUR_TOKEN` or "Your Name". **Run all** only runs a block whose every line is such a command. The rest goes on the prompt for you to finish.
+- A comment after a command (`pnpm i # once`) no longer goes along when it is run or put on the prompt: zsh would take it as arguments.
+- More commands are marked red as risky: `git push`, removing any file, `kill`, global git config, docker volumes, dropping a database and scripts piped from the internet. Writing to `/dev/null` no longer is.
+- Parrot never types into an agent that runs in the terminal, also when putting a command on the prompt.
+- Plan version 11: run and checks is split into run with one click (0.7.0), checks (0.8.0) and links that take you there (0.9.0).
+
 ## [0.6.0] - 2026-11-23
 
 One look and one language.
