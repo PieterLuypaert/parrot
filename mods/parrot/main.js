@@ -23,7 +23,7 @@ import {
   checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, settings, setShared,
   shared, terminals, theme, watchFolder,
 } from "herdr";
-import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shellOf, shows, watched, zoomOf } from "./mood.js";
+import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shellOf, shows, terminalLabel, watched, zoomOf } from "./mood.js";
 import {
   MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, chatLanguage, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
@@ -624,7 +624,7 @@ export default class Parrot extends View {
     const can = Boolean(this.terminal());
     const lit = on && can;
     const tip = !can ? "Parrot needs a terminal pane in this tab: it watches shells, not agents (⌥⌘P)"
-      : on ? "Parrot is on and watches this tab's terminal. Click to turn it off (⌥⌘P)"
+      : on ? `Parrot is on and watches ${terminalLabel(this.terminal(), panes(), home())}. Click to turn it off (⌥⌘P)`
         : "Parrot is off: click to turn it on (⌥⌘P)";
     const isLast = find(layout(), (n) => n.id === "tabs-row")?.children?.at(-1)?.id === BUTTON;
     return h_flex().size_full().pr(isLast ? 10 : 3).items_center().justify_end().bg(t.chrome).border_b(1).border_color(t.border)
@@ -729,7 +729,10 @@ export default class Parrot extends View {
     const picture = FRAMES + frame(this.shown, this.blinking, this.beat ?? 0) + ".png";
     const above = { sleep: ["z", "z z", "z z Z", ""], think: [".", "..", "...", ""] }[this.shown];
     const alert = openAlertNow();
-    const tip = alert ? `${headline(alert)}: click for help` : this.shown === "sleep" ? "Parrot is asleep: click to wake it and ask something" : "Ask Parrot about this project (⌥⇧⌘P)";
+    const watching = terminalLabel(watched(focused(), panes(), terminals()), panes(), home());
+    const tip = alert ? `${headline(alert)}. Click to see it in the chat`
+      : this.shown === "sleep" ? "Parrot is asleep: click to wake it and ask something"
+        : `Parrot watches ${watching}. Click to ask about this project (⌥⇧⌘P)`;
     let bird = div().relative().top(0).left(0).child(image(picture).w(SIZE).h(SIZE));
     if (this.shaking) bird = bird.loop("left", { from: -2, to: 2, period: 120 });
     let perch = div().relative().top(0).child(bird);
@@ -910,7 +913,7 @@ export default class Parrot extends View {
     const alert = openAlertNow();
     const note = openNoteNow(terminal);
     this.followLatest(messages, thinking, alert ?? note, cx);
-    const where = root ? `${projectName(root)}${branch ? ` · ${branch}` : ""}` : "no terminal in this tab";
+    const where = root ? [shellOf(terminal), projectName(root), branch].filter(Boolean).join(" · ") : "no terminal in this tab";
     // Every press stops here, so the chat never drags: it stays beside its parrot.
     return h_flex().id("parrot-chat").size_full().items_start().on_mouse_down("left", stop)
       .track_focus(this.handle)
@@ -924,7 +927,7 @@ export default class Parrot extends View {
         .child(v_flex().absolute().top(0).left(0).right(SHADOW).bottom(SHADOW).bg(t.popover).text_color(t.foreground)
           .border_2().border_color(RED_DARK)
           .child(this.stripe())
-          .child(this.chatHeader(t, where, root, messages.length > 0))
+          .child(this.chatHeader(t, where, terminalLabel(terminal, panes(), home()), root, messages.length > 0))
           .child(this.chatList(t, messages, thinking, root, alert, note))
           .child(this.composer(t, thinking))))
       .child(this.tail());
@@ -940,11 +943,13 @@ export default class Parrot extends View {
     return v_flex().w(TAIL).flex_none().pt(34).children([8, 6, 4, 2].map((w) => div().w(w).h(3).bg(RED_DARK)));
   }
 
-  chatHeader(t, where, root, canClear) {
+  chatHeader(t, where, watching, root, canClear) {
     return h_flex().h(40).px(12).gap(8).flex_none().items_center().border_b_2().border_color(t.border)
       .child(image(FRAMES + "icon.png").w(16).h(16))
       .child(div().text_size(13).font_bold().text_color(RED).child("PARROT"))
-      .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.muted).child(where))
+      .child(div().id("parrot-chat-where").flex_1().min_w(0).truncate().text_size(12).text_color(t.muted)
+        .when(Boolean(watching), (el) => el.tooltip(`Parrot watches ${watching} and answers about its project`))
+        .child(where))
       .when(canClear, (el) => el.child(this.chatButton(t, "parrot-chat-clear", "Clear chat", "Clear this project's chat and start a new conversation (or type /clear)", () => this.clearChat(root))))
       .child(this.chatButton(t, "parrot-chat-close", "×", "Close (Esc)", () => closeOverlay(props()?.overlay)));
   }
