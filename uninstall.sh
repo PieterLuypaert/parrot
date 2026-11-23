@@ -22,10 +22,11 @@ herdr=${HERDR_APP_BIN:-$(command -v herdr-app 2>/dev/null || true)}
 if [ -z "$herdr" ] && [ -x "$HOME/.local/bin/herdr-app" ]; then herdr="$HOME/.local/bin/herdr-app"; fi
 
 # Parrot's chats and state live in the app's shared state. With the app open, parrot clears them
-# itself, and the app writes the rest; with it closed, they are taken out of shared.json.
+# itself, and the app writes the rest; with it closed, they are taken out of shared.json. herdr-app
+# do ends well also when nobody took the command, so its answer has to say ok.
 forget_state() {
   if [ -n "$herdr" ] && "$herdr" status >/dev/null 2>&1; then
-    if "$herdr" "do" parrot.forget >/dev/null 2>&1; then
+    if "$herdr" "do" parrot.forget 2>/dev/null | jq -e '.ok == true' >/dev/null 2>&1; then
       echo "app: parrot's chats and state are cleared"
     else
       echo "app: parrot did not answer, so its chats stay in the app: close the Herdr app and run this again to clear them" >&2

@@ -18,8 +18,8 @@ const write = (path, value) => writeFileSync(path, typeof value === "string" ? v
 // An installed parrot in a folder of its own: the app's home with a layout that has the button,
 // keys, a linked mod and shared state, a ~/.zshrc that loads the hook, and ~/.parrot. Nothing
 // outside it is touched: HOME points into it, and herdr-app is a stand-in that writes down what it
-// was asked, the app open or closed as `appOpen` says.
-function installed({ appOpen = false } = {}) {
+// was asked, the app open or closed as `appOpen` says, and parrot there answering or not.
+function installed({ appOpen = false, answers = true } = {}) {
   const root = mkdtempSync(join(tmpdir(), "parrot-uninstall-"));
   const home = join(root, "home");
   const app = join(home, ".config", "herdr-app");
@@ -36,7 +36,8 @@ function installed({ appOpen = false } = {}) {
   write(join(home, ".parrot", "events", "123.json"), "{}");
   const calls = join(root, "calls");
   const herdr = join(root, "bin", "herdr-app");
-  write(herdr, `#!/bin/sh\necho "$*" >> "${calls}"\n[ "$1" = status ] && exit ${appOpen ? 0 : 1}\nexit 0\n`);
+  const answer = answers ? '{"ok": true}' : '{"error": "unknown command"}';
+  write(herdr, `#!/bin/sh\necho "$*" >> "${calls}"\n[ "$1" = status ] && exit ${appOpen ? 0 : 1}\necho '${answer}'\nexit 0\n`);
   chmodSync(herdr, 0o755);
   return { root, home, app, zdot, calls, herdr };
 }
@@ -82,9 +83,17 @@ describe("uninstall.sh", () => {
 
   test("asks the open app to clear parrot's state, and leaves shared.json to it", () => {
     const place = installed({ appOpen: true });
-    uninstall(place);
+    const { out } = uninstall(place);
     expect(readFileSync(place.calls, "utf8")).toContain("do parrot.forget");
+    expect(out).toContain("parrot's chats and state are cleared");
     expect(json(join(place.app, "shared.json"))["parrot.on"]).toBe(true);
+  });
+
+  test("says so when the open app has no parrot to clear its state", () => {
+    const place = installed({ appOpen: true, answers: false });
+    const { code, out } = uninstall(place);
+    expect(code).toBe(0);
+    expect(out).toContain("parrot did not answer");
   });
 
   test("keeps a parrot folder that holds files of someone else's", () => {
