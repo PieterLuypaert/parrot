@@ -1,6 +1,6 @@
 # Parrot: plan
 
-Plan version 11, 23 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
+Plan version 12, 23 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
 
 A pixel-art parrot in the Herdr app that watches while you work. When it sees an error, in your terminal or beyond it (your stack's logs, your PR's CI, your local app in the browser), it startles. Click it and your own Claude works out what went wrong and explains it in a speech bubble, with a fix as a command you run with one click. You can also ask it anything yourself, at any time.
 
@@ -254,7 +254,8 @@ Each piece is a PR of its own that works by itself.
    - how it ended, from the hook, under the block.
 8. **Checks:** the Checked or Hunch label, with the fixed list of checks Claude may run.
 9. **Links that take you there:** a file at its line in Cursor, a URL in the browser, a terminal's pane.
-10. **Finishing touches:** the squawk (an MP3), silent mode, pirate talk on or off, model choice. The README with screenshots in light and dark came early, with 0.4.1.
+10. **Explain or fix** (added in plan version 12, at your request): when a command fails, the parrot asks what to do, with two buttons instead of typing the first question: Explain (why, briefly) or Fix it (only the commands, ready to run).
+11. **Finishing touches:** the squawk (an MP3), silent mode, pirate talk on or off, model choice. The README with screenshots in light and dark came early, with 0.4.1.
 
 **Out of scope for now:** the watcher (running programs in other panes, your stack's logs, "What it saw"), your PR's CI and the browser extension.
 
@@ -274,6 +275,7 @@ Parrot follows [semver](https://semver.org). Until everything in the build order
 | 0.7.0 | Run with one click |
 | 0.8.0 | Checks |
 | 0.9.0 | Links that take you there |
+| 0.10.0 | Explain or fix |
 | 1.0.0 | Finishing touches |
 
 - **Fixes in between** are patch versions, such as 0.3.1.

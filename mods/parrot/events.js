@@ -125,33 +125,64 @@ export function headline(alert) {
   return alert.kind === "not-found" ? `zsh: command not found: ${word}` : `${alert.cmd.trim()} failed with exit code ${alert.code}`;
 }
 
-// The question "Ask Parrot" puts to Claude about the alert, in the language you chat in, so the
-// answer comes in it too.
+// The questions an alert's buttons put to Claude, in the language you chat in, so the answer comes
+// in it too: Explain asks why, briefly; Fix it asks only for the commands that fix it.
 const QUESTIONS = {
   en: {
-    notFound: (cmd) => `I typed ${cmd} and zsh says it cannot find that command. What did I mean, or how do I get it?`,
-    failed: (cmd, code) => `${cmd} failed with exit code ${code}. Why, and how do I fix it? Its output is in the terminal.`,
+    notFound: {
+      explain: (cmd) => `I typed ${cmd} and zsh says it cannot find that command. Why, briefly?`,
+      fix: (cmd) => `I typed ${cmd} and zsh says it cannot find that command. Give me only the fix: the command I meant, or the commands to get it, in a code block, and one line on why.`,
+    },
+    failed: {
+      explain: (cmd, code) => `${cmd} failed with exit code ${code}. Explain briefly why. Its output is in the terminal.`,
+      fix: (cmd, code) => `${cmd} failed with exit code ${code}. Give me only the fix: the commands to run, in a code block, and one line on why. Its output is in the terminal.`,
+    },
   },
   nl: {
-    notFound: (cmd) => `Ik typte ${cmd} en zsh vindt dat commando niet. Wat bedoelde ik, of hoe krijg ik het?`,
-    failed: (cmd, code) => `${cmd} faalde met exitcode ${code}. Waarom, en hoe los ik het op? De output staat in de terminal.`,
+    notFound: {
+      explain: (cmd) => `Ik typte ${cmd} en zsh vindt dat commando niet. Waarom, kort?`,
+      fix: (cmd) => `Ik typte ${cmd} en zsh vindt dat commando niet. Geef me alleen de oplossing: het commando dat ik bedoelde, of de commando's om het te krijgen, in een codeblok, en één regel waarom.`,
+    },
+    failed: {
+      explain: (cmd, code) => `${cmd} faalde met exitcode ${code}. Leg kort uit waarom. De output staat in de terminal.`,
+      fix: (cmd, code) => `${cmd} faalde met exitcode ${code}. Geef me alleen de oplossing: de commando's om te draaien, in een codeblok, en één regel waarom. De output staat in de terminal.`,
+    },
   },
   fr: {
-    notFound: (cmd) => `J'ai tapé ${cmd} et zsh ne trouve pas cette commande. Qu'est-ce que je voulais dire, ou comment l'obtenir ?`,
-    failed: (cmd, code) => `${cmd} a échoué avec le code de sortie ${code}. Pourquoi, et comment le corriger ? Sa sortie est dans le terminal.`,
+    notFound: {
+      explain: (cmd) => `J'ai tapé ${cmd} et zsh ne trouve pas cette commande. Pourquoi, en bref ?`,
+      fix: (cmd) => `J'ai tapé ${cmd} et zsh ne trouve pas cette commande. Donne-moi seulement la solution : la commande que je voulais, ou les commandes pour l'obtenir, dans un bloc de code, et une ligne sur pourquoi.`,
+    },
+    failed: {
+      explain: (cmd, code) => `${cmd} a échoué avec le code de sortie ${code}. Explique brièvement pourquoi. Sa sortie est dans le terminal.`,
+      fix: (cmd, code) => `${cmd} a échoué avec le code de sortie ${code}. Donne-moi seulement la solution : les commandes à lancer, dans un bloc de code, et une ligne sur pourquoi. Sa sortie est dans le terminal.`,
+    },
   },
   de: {
-    notFound: (cmd) => `Ich habe ${cmd} eingegeben und zsh findet diesen Befehl nicht. Was meinte ich, oder wie bekomme ich ihn?`,
-    failed: (cmd, code) => `${cmd} ist mit Exit-Code ${code} fehlgeschlagen. Warum, und wie behebe ich das? Die Ausgabe steht im Terminal.`,
+    notFound: {
+      explain: (cmd) => `Ich habe ${cmd} eingegeben und zsh findet diesen Befehl nicht. Warum, kurz?`,
+      fix: (cmd) => `Ich habe ${cmd} eingegeben und zsh findet diesen Befehl nicht. Gib mir nur die Lösung: den Befehl, den ich meinte, oder die Befehle, um ihn zu bekommen, in einem Codeblock, und eine Zeile zum Warum.`,
+    },
+    failed: {
+      explain: (cmd, code) => `${cmd} ist mit Exit-Code ${code} fehlgeschlagen. Erkläre kurz, warum. Die Ausgabe steht im Terminal.`,
+      fix: (cmd, code) => `${cmd} ist mit Exit-Code ${code} fehlgeschlagen. Gib mir nur die Lösung: die Befehle, in einem Codeblock, und eine Zeile zum Warum. Die Ausgabe steht im Terminal.`,
+    },
   },
   es: {
-    notFound: (cmd) => `Escribí ${cmd} y zsh no encuentra ese comando. ¿Qué quise decir, o cómo lo consigo?`,
-    failed: (cmd, code) => `${cmd} falló con el código de salida ${code}. ¿Por qué, y cómo lo arreglo? Su salida está en la terminal.`,
+    notFound: {
+      explain: (cmd) => `Escribí ${cmd} y zsh no encuentra ese comando. ¿Por qué, en breve?`,
+      fix: (cmd) => `Escribí ${cmd} y zsh no encuentra ese comando. Dame solo la solución: el comando que quería, o los comandos para conseguirlo, en un bloque de código, y una línea sobre el porqué.`,
+    },
+    failed: {
+      explain: (cmd, code) => `${cmd} falló con el código de salida ${code}. Explica brevemente por qué. Su salida está en la terminal.`,
+      fix: (cmd, code) => `${cmd} falló con el código de salida ${code}. Dame solo la solución: los comandos a ejecutar, en un bloque de código, y una línea sobre el porqué. Su salida está en la terminal.`,
+    },
   },
 };
 
-export function questionFor(alert, language = "en") {
+export function questionFor(alert, language = "en", intent = "explain") {
   const ask = QUESTIONS[language] ?? QUESTIONS.en;
   const cmd = `\`${alert.cmd.trim()}\``;
-  return alert.kind === "not-found" ? ask.notFound(cmd) : ask.failed(cmd, alert.code);
+  const kind = alert.kind === "not-found" ? ask.notFound : ask.failed;
+  return (kind[intent] ?? kind.explain)(cmd, alert.code);
 }

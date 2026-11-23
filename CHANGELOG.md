@@ -4,6 +4,20 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-23
+
+Explain, or fix it.
+
+### Added
+
+- When a command fails, the parrot asks what to do: **Fix it** asks your Claude only for the commands that fix it, in a code block with one line on why, so they arrive ready to run or put on the prompt; **Explain** asks why it failed, briefly. Both go to the chat with the terminal's output, in the language you chat in. After a typo they sit under your Claude's guesses.
+- `parrot.fix` asks for the fix of the current alert, as `parrot.explain` asks why.
+
+### Changed
+
+- The two buttons take the place of **Ask Parrot**, so you no longer type the first question yourself.
+- Plan version 12: explain or fix is 0.10.0, before the finishing touches.
+
 ## [0.9.0] - 2026-11-23
 
 Links that take you there.

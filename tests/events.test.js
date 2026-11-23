@@ -104,9 +104,24 @@ describe("the alert", () => {
 
   test("asks in the language you chat in, and in English for one it does not know", () => {
     const failed = alertFor(event(2, "pnpm test"), { terminal: "t1", id: "a" });
-    expect(questionFor(failed, "nl")).toBe("`pnpm test` faalde met exitcode 2. Waarom, en hoe los ik het op? De output staat in de terminal.");
+    expect(questionFor(failed, "nl")).toBe("`pnpm test` faalde met exitcode 2. Leg kort uit waarom. De output staat in de terminal.");
     expect(questionFor(alertFor(event(127, "gti"), { terminal: "t1", id: "a" }), "de")).toContain("findet diesen Befehl nicht");
     expect(questionFor(failed, "ja")).toBe(questionFor(failed, "en"));
+  });
+
+  test("asks why for Explain, and only for the commands for Fix it, in every language", () => {
+    const failed = alertFor(event(2, "pnpm test"), { terminal: "t1", id: "a" });
+    const notFound = alertFor(event(127, "gti push"), { terminal: "t1", id: "a" });
+    expect(questionFor(failed, "en", "explain")).toBe("`pnpm test` failed with exit code 2. Explain briefly why. Its output is in the terminal.");
+    expect(questionFor(failed, "en", "fix")).toContain("Give me only the fix: the commands to run, in a code block");
+    expect(questionFor(notFound, "en", "fix")).toContain("the command I meant");
+    for (const language of ["en", "nl", "fr", "de", "es"]) {
+      for (const alert of [failed, notFound]) {
+        expect(questionFor(alert, language, "fix")).not.toBe(questionFor(alert, language, "explain"));
+        expect(questionFor(alert, language, "fix")).toContain(alert.cmd.trim());
+      }
+    }
+    expect(questionFor(failed, "en", "nope")).toBe(questionFor(failed, "en", "explain"));
   });
 
   test("keeps the terminal, the suggestions and what kind of error it is", () => {
