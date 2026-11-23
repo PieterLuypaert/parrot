@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  KEEP_MESSAGES, KEEP_PROJECTS, SUGGEST_MODEL, TOOLS, claudeArgs, mask, parseAnswer, parseSuggestions, projectName, promptFor,
-  suggestArgs, suggestPrompt, tail, withMessage, withSession, withoutChat,
+  KEEP_MESSAGES, KEEP_PROJECTS, SUGGEST_MODEL, SUGGEST_TIMEOUT, TOOLS, claudeArgs, explainFailure, mask, parseAnswer, parseSuggestions,
+  projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, withoutChat,
 } from "../mods/parrot/ask.js";
 
 describe("asking Claude what you meant", () => {
@@ -37,7 +37,8 @@ describe("asking Claude what you meant", () => {
   test("reads Claude's suggestions, or says why there are none", () => {
     const stdout = JSON.stringify({ is_error: false, structured_output: { suggestions: [{ command: " git commit ", why: "commit typo" }, { command: "", why: "x" }] } });
     expect(parseSuggestions({ code: 0, stdout, stderr: "" })).toEqual({ suggestions: [{ command: "git commit", why: "commit typo" }] });
-    expect(parseSuggestions({ code: 1, stdout: "", stderr: "Not logged in" }).error).toBe("Claude could not suggest: Not logged in.");
+    expect(parseSuggestions({ code: 1, stdout: "", stderr: "Segmentation fault" }).error).toBe("Claude could not suggest: Segmentation fault.");
+    expect(parseSuggestions({ code: 1, stdout: "", stderr: "Not logged in" }).error).toMatch(/^Your Claude Code is not logged in/);
   });
 });
 
@@ -124,8 +125,36 @@ describe("parseAnswer", () => {
   });
 
   test("says why when the output is no JSON at all", () => {
-    expect(parseAnswer({ code: 1, stdout: "", stderr: "Not logged in\nRun claude login" }).error).toBe("Claude could not answer: Not logged in");
+    expect(parseAnswer({ code: 1, stdout: "", stderr: "Unexpected token\nat line 3" }).error).toBe("Claude could not answer: Unexpected token");
     expect(parseAnswer({ code: 2, stdout: "", stderr: "" }).error).toBe("Claude could not answer: claude stopped with exit code 2");
+  });
+});
+
+describe("explainFailure", () => {
+  test("says what to do when Claude Code is not logged in, as it reports it", () => {
+    const stdout = JSON.stringify({ type: "result", is_error: true, result: "Not logged in · Please run /login" });
+    expect(parseAnswer({ code: 1, stdout, stderr: "" }).error).toBe("Your Claude Code is not logged in. Run claude in a terminal, log in with /login, and try again.");
+  });
+
+  test("names when a usage limit resets, when Claude says so", () => {
+    expect(explainFailure("You've hit your session limit · resets 3pm (Europe/Brussels)")).toBe("You have used up your Claude usage for now; it resets 3pm (Europe/Brussels). Try again after that.");
+    expect(explainFailure("Claude AI usage limit reached")).toBe("You have used up your Claude usage for now. Try again after that.");
+  });
+
+  test("says how long parrot waited before it gave up", () => {
+    expect(explainFailure("the command timed out")).toMatch(/longer than 10 minutes/);
+    expect(explainFailure("timeout", SUGGEST_TIMEOUT)).toMatch(/longer than 1 minute,/);
+    expect(explainFailure("timed out", 30 * 1000)).toMatch(/longer than 30 seconds/);
+  });
+
+  test("tells an overloaded Claude and a missing connection apart", () => {
+    expect(explainFailure("API Error: 529 Overloaded")).toBe("Claude is overloaded right now. Try again in a minute.");
+    expect(explainFailure("getaddrinfo ENOTFOUND api.anthropic.com")).toMatch(/internet connection/);
+  });
+
+  test("leaves other failures to the caller", () => {
+    expect(explainFailure("Prompt is too long")).toBeNull();
+    expect(explainFailure(undefined)).toBeNull();
   });
 });
 

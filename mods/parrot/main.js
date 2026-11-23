@@ -24,7 +24,7 @@ import {
 } from "herdr";
 import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shows, watched } from "./mood.js";
 import {
-  OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, mask, messageId, parseAnswer, parseSuggestions,
+  MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
 import { alertFor, headline, parseEvent, questionFor, reaction, wantsClaude } from "./events.js";
@@ -354,13 +354,14 @@ export default class Parrot extends View {
     const bin = await this.claudeBin();
     let result;
     if (!bin) {
-      result = { error: `Parrot could not find the claude command (${this.claudeMiss}).` };
+      result = { error: MISSING_CLAUDE };
     } else {
       try {
         const prompt = suggestPrompt({ line: alert.cmd, code: alert.code, cwd: alert.cwd, output, scripts, history });
         result = parseSuggestions(await exec(bin, suggestArgs(prompt), { cwd: alert.cwd, timeout: SUGGEST_TIMEOUT }));
       } catch (error) {
-        result = { error: `Claude could not suggest: ${error?.message ?? error}` };
+        const why = String(error?.message ?? error);
+        result = { error: explainFailure(why, SUGGEST_TIMEOUT) ?? `Claude could not suggest: ${why}` };
       }
     }
     const now = shared(ALERT);
@@ -476,25 +477,22 @@ export default class Parrot extends View {
     const output = address ? await this.readOutput(address) : "";
     const prompt = promptFor({ question, cwd, branch, output });
     const bin = await this.claudeBin();
-    if (!bin) return { error: `Parrot could not find the claude command (${this.claudeMiss}). Install Claude Code and log in, or put claude on your PATH.` };
+    if (!bin) return { error: MISSING_CLAUDE };
     try {
       return parseAnswer(await exec(bin, claudeArgs({ prompt, session: chats()[root]?.session }), { cwd, timeout: TIMEOUT }));
     } catch (error) {
-      return { error: `Parrot could not reach Claude: ${error?.message ?? error}` };
+      const why = String(error?.message ?? error);
+      return { error: explainFailure(why) ?? `Parrot could not reach Claude: ${why}` };
     }
   }
 
   // claude by name, else where installers put it: an app opened from the Dock gets a short PATH.
+  // One that cannot start is simply not there; the next place is tried.
   async claudeBin() {
     if (this.claude) return this.claude;
     for (const bin of claudeCandidates(home())) {
-      try {
-        const run = await exec(bin, ["--version"], { timeout: 15000 });
-        if (run.code === 0) return (this.claude = bin);
-        this.claudeMiss = `${bin} ended with ${run.code}`;
-      } catch (error) {
-        this.claudeMiss = `${bin}: ${error?.message ?? error}`;
-      }
+      const run = await exec(bin, ["--version"], { timeout: 15000 }).catch(() => null);
+      if (run?.code === 0) return (this.claude = bin);
     }
     return null;
   }
