@@ -4,6 +4,26 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-23
+
+A clear first run, and a clean way out.
+
+### Added
+
+- The first time the parrot comes out, it says hello with a little dance: what it watches, what it does when a command fails, and that a click asks it anything.
+- A note beside the parrot when the zsh it watches has not loaded the hook, as in a terminal open before the install, with **Load it here**, which loads the hook in that terminal. The hook leaves a mark under `~/.parrot/shells` when a shell loads it, which is how parrot tells. A terminal with another shell gets a note that parrot cannot hear it.
+- `uninstall.sh` undoes `install.sh`. Parrot's chats and state leave the app (through `parrot.forget`), the button leaves every layout, the keys bound to parrot are freed, the mod is unlinked, the hook's line leaves `~/.zshrc` and `~/.parrot` goes. It keeps each file it changes beside it.
+
+### Fixed
+
+- When Claude cannot answer, the chat and the alert say what to do: log in, wait until your usage resets, try again, check your connection, or install Claude Code.
+- **Put on prompt** works in any zsh, also one without the hook, through zsh's own `print -z`. In another shell it says it cannot type there.
+
+### Changed
+
+- The hook stays quiet once `~/.parrot` is gone, so a terminal left open after uninstalling never brings it back.
+- Plan version 10: a clear first run and a clean way out is 0.5.0, one look and one language 0.6.0, and running a fix with one click moves to 0.7.0.
+
 ## [0.4.1] - 2026-11-22
 
 Sharper guesses, and a chat that keeps up.

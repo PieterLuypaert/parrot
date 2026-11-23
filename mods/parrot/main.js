@@ -14,6 +14,7 @@
 //   token is not the latest closes itself, so there is never more than one.
 // - {chat: true}: the chat beside it, which a click on the parrot or ⌥⇧⌘P (parrot.chat) opens.
 //   parrot.explain asks about the current alert there, as its Ask Parrot button does.
+// parrot.forget clears everything parrot keeps in the app; uninstall.sh sends it.
 // `herdr-app do parrot.calm | parrot.watch | parrot.sleep | parrot.think` shows a mood for ten seconds.
 
 import { View, div, image } from "gpui-kit";
@@ -22,12 +23,13 @@ import {
   checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, settings, setShared,
   shared, terminals, theme, watchFolder,
 } from "herdr";
-import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shows, watched } from "./mood.js";
+import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shellOf, shows, watched } from "./mood.js";
 import {
-  OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, mask, messageId, parseAnswer, parseSuggestions,
+  MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
 import { alertFor, headline, parseEvent, questionFor, reaction, wantsClaude } from "./events.js";
+import { HOOK_GRACE, hookPath, noteFor } from "./notes.js";
 import { isRisky, scriptsFrom, segments, shellQuote } from "./shell.js";
 
 const FRAMES = "mods/parrot/frames/";
@@ -52,6 +54,10 @@ const ALERT = "parrot.alert";
 const PLEA = "parrot.plea";
 const ALERT_WINDOW = "parrot.alertWindow";
 const DANCE_AT = "parrot.dance";
+const NOTE = "parrot.note";
+const WELCOMED = "parrot.welcomed";
+// Everything parrot keeps in the app, for parrot.forget; parrot.thinking is from an early build.
+const KEPT = [ON, OPEN, OVERLAY, PERCH, WIDTH, CORNER, CHAT, CHATS, ASK, BUSY, ALERT, PLEA, ALERT_WINDOW, DANCE_AT, NOTE, WELCOMED, "parrot.thinking"];
 const ALERT_W = 380;
 const SHAKE_FOR = 700;
 const SETTLE = 1500;
@@ -92,6 +98,14 @@ const openAlertNow = () => {
   return alert && !alert.taken ? alert : null;
 };
 
+// A note, such as hello or why it cannot hear a terminal, shows where an alert would, while there
+// is no alert. One about a terminal shows only while the parrot watches that terminal.
+const openNoteNow = (terminal) => {
+  if (openAlertNow()) return null;
+  const note = shared(NOTE);
+  return note && (!note.terminal || note.terminal === terminal?.address) ? note : null;
+};
+
 // What the parrot says about an error opens there too, as big as what it says.
 function openAlert(at) {
   openOverlay({ mod: "parrot", props: { alert: true }, kind: "window", frame: "none", width: ALERT_W, at: { x: Math.max(0, at.x + 10 - ALERT_W), y: at.y } });
@@ -110,7 +124,8 @@ function putCommand(alert, command) {
 }
 
 // Puts a command on that terminal's prompt and focuses its pane: "put", "busy" (something still
-// runs there) or "gone".
+// runs there, or it is no zsh) or "gone". zsh's own print -z does it, so it works also in a shell
+// that never loaded parrot's hook.
 function putOnPrompt(address, command) {
   const terminal = terminals().find((one) => one.address === address);
   if (!terminal) {
@@ -121,11 +136,32 @@ function putOnPrompt(address, command) {
     notify({ title: "Something still runs in that terminal", body: "Parrot puts the command on the prompt once you are back at it: click again then.", level: "info" });
     return "busy";
   }
-  hc(["send", address, ` parrot-put ${shellQuote(command)}`])
+  const shell = shellOf(terminal);
+  if (shell && shell !== "zsh") {
+    notify({ title: `Parrot cannot type into ${shell}`, body: "It puts commands on the prompt only in zsh. Copy this one instead.", level: "info" });
+    return "busy";
+  }
+  hc(["send", address, ` print -z -- ${shellQuote(command)}`])
     .then((sent) => { if (sent.code !== 0) throw new Error(tail(sent.stderr, 1) || `hc send ended with ${sent.code}`); })
     .catch((error) => notify({ title: "Parrot could not reach the terminal", body: String(error?.message ?? error), level: "error" }));
   run("pane.focus", { terminal: address });
   return "put";
+}
+
+// "Load it here" on a terminal opened before the install: the hook is sourced there now, so the
+// parrot hears that terminal from its next command on.
+function loadHook(note) {
+  const terminal = terminals().find((one) => one.address === note.terminal);
+  setShared(NOTE, null);
+  if (!terminal) return;
+  if (runsCommand(terminal)) {
+    notify({ title: "Something still runs in that terminal", body: "Parrot loads its hook there once you are back at the prompt.", level: "info" });
+    return;
+  }
+  hc(["send", note.terminal, ` source ${shellQuote(note.hook)}`])
+    .then((sent) => { if (sent.code !== 0) throw new Error(tail(sent.stderr, 1) || `hc send ended with ${sent.code}`); })
+    .catch((error) => notify({ title: "Parrot could not reach the terminal", body: String(error?.message ?? error), level: "error" }));
+  run("pane.focus", { terminal: note.terminal });
 }
 
 // The git project a folder belongs to, so one chat covers it; outside git the folder itself.
@@ -220,10 +256,14 @@ export default class Parrot extends View {
     this.lastAsk = shared(ASK)?.id ?? null;
     this.lastPlea = shared(PLEA)?.id ?? null;
     this.alertShown = null;
+    this.heard = new Set();
+    this.noted = new Set();
+    this.lookingFor = new Set();
     if (checking()) return;
     for (const id of [shared(CHAT), shared(OVERLAY), shared(ALERT_WINDOW)]) if (id) closeOverlay(id);
     setShared(ALERT, null);
     setShared(ALERT_WINDOW, null);
+    setShared(NOTE, null);
     this.markOff(shared(ON) !== true);
     this.watchEvents(cx);
     let all = chats();
@@ -238,13 +278,22 @@ export default class Parrot extends View {
     cx.spawn(async (cx) => {
       for (;;) {
         const command = await nextCommand();
-        if (command !== "toggle" && command !== "chat") continue;
+        if (command !== "toggle" && command !== "chat" && command !== "forget") continue;
         // cx first: after a reload, the old build's loop ends here instead of acting twice.
         cx.notify();
         if (command === "toggle") this.toggle();
+        else if (command === "forget") this.forget();
         else if (shared(OPEN) !== true) this.explainChat();
       }
     });
+  }
+
+  // parrot.forget, which uninstall.sh sends: its windows close, and the chats and everything else
+  // parrot keeps in the app go, so it is off too.
+  forget() {
+    for (const id of [shared(CHAT), shared(OVERLAY), shared(ALERT_WINDOW)]) if (id) closeOverlay(id);
+    for (const key of KEPT) setShared(key, null);
+    this.markOff(true);
   }
 
   // On or off, from the button or ⌥⌘P. Turning it on needs a terminal in the tab to watch.
@@ -255,7 +304,15 @@ export default class Parrot extends View {
       return;
     }
     setShared(ON, !on);
-    if (on) setShared(ALERT, null);
+    if (on) {
+      setShared(ALERT, null);
+      setShared(NOTE, null);
+    } else if (shared(WELCOMED) !== true) {
+      // The first time it comes out, it says hello, with a little dance.
+      setShared(WELCOMED, true);
+      setShared(NOTE, { id: messageId(), kind: "welcome" });
+      setShared(DANCE_AT, Date.now());
+    }
     this.markOff(on);
   }
 
@@ -292,15 +349,17 @@ export default class Parrot extends View {
     });
   }
 
-  // The folder only you can read, without the files of shells that are gone.
+  // The folder only you can read, without the files and marks of shells that are gone.
   async prepareEvents(dir) {
     if (this.prepared) return;
-    const made = await exec("sh", ["-c", 'mkdir -m 700 -p "$1/events" && chmod 700 "$1" "$1/events"', "sh", parrotHome()]);
+    const made = await exec("sh", ["-c", 'mkdir -m 700 -p "$1/events" "$1/shells" && chmod 700 "$1" "$1/events" "$1/shells"', "sh", parrotHome()]);
     if (made.code !== 0) throw new Error(`could not make ${dir}: ${tail(made.stderr, 1)}`);
-    const listing = await exec("ls", [dir]);
     const alive = new Set(terminals().map((one) => String(one.pid)));
-    const gone = lines(listing.stdout).filter((name) => /^\d+\./.test(name) && !alive.has(name.split(".")[0]));
-    if (gone.length) await exec("rm", ["-f", ...gone.map((name) => `${dir}/${name}`)]);
+    for (const folder of [dir, `${parrotHome()}/shells`]) {
+      const listing = await exec("ls", [folder]);
+      const gone = lines(listing.stdout).filter((name) => /^\d+(\.|$)/.test(name) && !alive.has(name.split(".")[0]));
+      if (gone.length) await exec("rm", ["-f", ...gone.map((name) => `${folder}/${name}`)]);
+    }
     this.prepared = true;
   }
 
@@ -354,13 +413,14 @@ export default class Parrot extends View {
     const bin = await this.claudeBin();
     let result;
     if (!bin) {
-      result = { error: `Parrot could not find the claude command (${this.claudeMiss}).` };
+      result = { error: MISSING_CLAUDE };
     } else {
       try {
         const prompt = suggestPrompt({ line: alert.cmd, code: alert.code, cwd: alert.cwd, output, scripts, history });
         result = parseSuggestions(await exec(bin, suggestArgs(prompt), { cwd: alert.cwd, timeout: SUGGEST_TIMEOUT }));
       } catch (error) {
-        result = { error: `Claude could not suggest: ${error?.message ?? error}` };
+        const why = String(error?.message ?? error);
+        result = { error: explainFailure(why, SUGGEST_TIMEOUT) ?? `Claude could not suggest: ${why}` };
       }
     }
     const now = shared(ALERT);
@@ -385,6 +445,7 @@ export default class Parrot extends View {
     if (checking()) return;
     this.takePlea(cx);
     this.takeAsk(cx);
+    this.listen(this.terminal(), cx);
     const want = shows({ on: shared(ON) === true, terminal: this.terminal() });
     const open = shared(OPEN) === true;
     const width = shared(WIDTH);
@@ -415,20 +476,64 @@ export default class Parrot extends View {
     if (chatWasOpen) openChat(at);
   }
 
-  // What the parrot says about an error opens beside it while there is an alert and the chat is
-  // closed; an open chat shows the alert itself.
+  // What the parrot says about an error, or a note, opens beside it while the chat is closed; an
+  // open chat shows it itself.
   syncAlert() {
-    const alert = openAlertNow();
+    const said = openAlertNow() ?? openNoteNow(this.terminal());
     const win = shared(ALERT_WINDOW);
     const chatOpen = Boolean(shared(CHAT));
-    if (win && (!alert || chatOpen)) {
+    if (win && (!said || chatOpen)) {
       closeOverlay(win);
       this.alertShown = null;
       return;
     }
-    if (!alert || win || chatOpen || this.alertShown === alert.id) return;
-    this.alertShown = alert.id;
+    if (!said || win || chatOpen || this.alertShown === said.id) return;
+    this.alertShown = said.id;
     openAlert(shared(CORNER) ?? { x: ALERT_W, y: 80 });
+  }
+
+  // A zsh that loaded the hook has left its mark under ~/.parrot/shells, or reported a command, as
+  // an older hook did; one with neither never loaded it, such as a terminal open before the install.
+  // Parrot looks a moment after it starts to watch a terminal, so a new one can load ~/.zshrc first.
+  // Another shell it cannot hear at all. Either way it says so once per shell. A terminal on another
+  // machine is left alone: its hook writes there.
+  listen(terminal, cx) {
+    if (!terminal || shared(ON) !== true || String(terminal.address).includes("/")) return;
+    const shell = shellOf(terminal);
+    if (shell && shell !== "zsh") return this.noteOnce(terminal, { kind: "not-zsh", shell });
+    const pid = terminal.pid;
+    if (shell !== "zsh" || !pid || this.heard.has(pid) || this.noted.has(pid) || this.lookingFor.has(pid)) return;
+    this.lookingFor.add(pid);
+    cx.spawn(async (cx) => {
+      await cx.sleep(HOOK_GRACE);
+      const [mark, event] = await Promise.all([readTextFile(`${parrotHome()}/shells/${pid}`), readTextFile(`${parrotHome()}/events/${pid}.json`)]);
+      this.lookingFor.delete(pid);
+      if (mark !== null || event !== null) return this.heard.add(pid);
+      // Off by now, or watching another terminal: it looks again when it watches this one.
+      const now = this.terminal();
+      if (shared(ON) !== true || now?.pid !== pid) return;
+      this.noteOnce(now, { kind: "no-hook", hook: hookPath(await this.zshrc()) });
+      cx.notify();
+    });
+  }
+
+  // A note waiting for another terminal makes way; hello, or one for this terminal, does not.
+  noteOnce(terminal, note) {
+    const waiting = shared(NOTE);
+    if (this.noted.has(terminal.pid) || (waiting && (!waiting.terminal || waiting.terminal === terminal.address))) return;
+    this.noted.add(terminal.pid);
+    setShared(NOTE, { id: messageId(), terminal: terminal.address, ...note });
+  }
+
+  // ~/.zshrc, or the one in $ZDOTDIR, which zsh's own startup sets.
+  async zshrc() {
+    try {
+      const where = await exec("zsh", ["-c", 'print -r -- "${ZDOTDIR:-$HOME}/.zshrc"'], { timeout: 5000 });
+      return where.code === 0 ? await readTextFile(where.stdout.trim()) : null;
+    } catch (error) {
+      notify({ title: "Parrot could not find your ~/.zshrc", body: String(error?.message ?? error), level: "warning" });
+      return null;
+    }
   }
 
   // An alert someone asked about: the question goes into its project's chat and to Claude, with the
@@ -476,25 +581,22 @@ export default class Parrot extends View {
     const output = address ? await this.readOutput(address) : "";
     const prompt = promptFor({ question, cwd, branch, output });
     const bin = await this.claudeBin();
-    if (!bin) return { error: `Parrot could not find the claude command (${this.claudeMiss}). Install Claude Code and log in, or put claude on your PATH.` };
+    if (!bin) return { error: MISSING_CLAUDE };
     try {
       return parseAnswer(await exec(bin, claudeArgs({ prompt, session: chats()[root]?.session }), { cwd, timeout: TIMEOUT }));
     } catch (error) {
-      return { error: `Parrot could not reach Claude: ${error?.message ?? error}` };
+      const why = String(error?.message ?? error);
+      return { error: explainFailure(why) ?? `Parrot could not reach Claude: ${why}` };
     }
   }
 
   // claude by name, else where installers put it: an app opened from the Dock gets a short PATH.
+  // One that cannot start is simply not there; the next place is tried.
   async claudeBin() {
     if (this.claude) return this.claude;
     for (const bin of claudeCandidates(home())) {
-      try {
-        const run = await exec(bin, ["--version"], { timeout: 15000 });
-        if (run.code === 0) return (this.claude = bin);
-        this.claudeMiss = `${bin} ended with ${run.code}`;
-      } catch (error) {
-        this.claudeMiss = `${bin}: ${error?.message ?? error}`;
-      }
+      const run = await exec(bin, ["--version"], { timeout: 15000 }).catch(() => null);
+      if (run?.code === 0) return (this.claude = bin);
     }
     return null;
   }
@@ -668,14 +770,32 @@ export default class Parrot extends View {
   // Beside the parrot, in the chat's pixel look, as big as what it says. It never drags.
   alertWindow(t) {
     const alert = openAlertNow();
-    if (!alert) return div();
+    const note = openNoteNow(watched(focused(), panes(), terminals()));
+    if (!alert && !note) return div();
     return h_flex().id("parrot-alert").w_full().items_start().on_mouse_down("left", stop)
       .child(div().relative().flex_1().min_w(0).pr(SHADOW).pb(SHADOW)
         .child(div().absolute().top(SHADOW).left(SHADOW).right(0).bottom(0).bg(PIXEL_SHADOW))
         .child(v_flex().relative().bg(t.popover).text_color(t.foreground).border_2().border_color(RED_DARK)
           .child(this.stripe())
-          .child(div().p(12).child(this.alertCard(t, alert, "window")))))
+          .child(div().p(12).child(alert ? this.alertCard(t, alert, "window") : this.noteCard(t, note, "window")))))
       .child(this.tail());
+  }
+
+  // Hello, or why the parrot cannot hear a terminal: a few lines and one button.
+  noteCard(t, note, where) {
+    const { title, lines: said, hint, action } = noteFor(note);
+    const act = action.kind === "load-hook" ? () => loadHook(note) : () => setShared(NOTE, null);
+    return v_flex().gap(8)
+      .child(h_flex().gap(8).items_center()
+        .child(image(FRAMES + "icon.png").w(20).h(20).flex_none())
+        .child(div().flex_1().min_w(0).text_size(13).font_bold().child(title))
+        .child(this.chatButton(t, `parrot-note-dismiss-${where}`, "×", "Close", () => setShared(NOTE, null))))
+      .children(said.map((line) => div().text_size(12.5).child(line)))
+      .when(Boolean(hint), (el) => el.child(div().text_size(11.5).text_color(t.dim).child(hint)))
+      .child(h_flex().child(div().id(`parrot-note-act-${where}`).h(30).px(12).flex().items_center().text_size(12.5).font_bold()
+        .bg(RED).text_color(WHITE).border_b_2().border_color(RED_DARK).cursor_pointer().hover((s) => s.opacity(0.9))
+        .on_click((_e, cx) => { act(); cx.notify(); })
+        .child(action.label)));
   }
 
   // The error in a line, the commands you probably meant, and Ask Parrot.
@@ -778,11 +898,12 @@ export default class Parrot extends View {
   }
 
   chat(t, cx) {
-    const { cwd, branch, root } = this.place(cx);
+    const { terminal, branch, root } = this.place(cx);
     const messages = (root && chats()[root]?.messages) || [];
     const thinking = Boolean(root && busy()[root]);
     const alert = openAlertNow();
-    this.followLatest(messages, thinking, alert, cx);
+    const note = openNoteNow(terminal);
+    this.followLatest(messages, thinking, alert ?? note, cx);
     const where = root ? `${projectName(root)}${branch ? ` · ${branch}` : ""}` : "no terminal in this tab";
     // Every press stops here, so the chat never drags: it stays beside its parrot.
     return h_flex().id("parrot-chat").size_full().items_start().on_mouse_down("left", stop)
@@ -798,7 +919,7 @@ export default class Parrot extends View {
           .border_2().border_color(RED_DARK)
           .child(this.stripe())
           .child(this.chatHeader(t, where, root, messages.length > 0))
-          .child(this.chatList(t, messages, thinking, root, alert))
+          .child(this.chatList(t, messages, thinking, root, alert, note))
           .child(this.composer(t, thinking))))
       .child(this.tail());
   }
@@ -832,33 +953,34 @@ export default class Parrot extends View {
   // Scrolls to what came in last. An answer replaces the thinking line, so the list keeps its
   // length and only the last item tells it apart; an alert grows when Claude's guesses land. A
   // long answer lands with its end in view; its question then comes to the top, so the answer
-  // reads from its start.
-  followLatest(messages, thinking, alert, cx) {
+  // reads from its start. `said` is the alert or the note at the end of the list.
+  followLatest(messages, thinking, said, cx) {
     const last = messages.at(-1);
-    const latest = `${last?.id ?? ""}|${thinking}|${alert ? `${alert.id}:${Boolean(alert.answered)}` : ""}`;
+    const latest = `${last?.id ?? ""}|${thinking}|${said ? `${said.id}:${Boolean(said.answered)}` : ""}`;
     if (latest === this.seen) return;
     this.seen = latest;
-    const count = messages.length + (thinking ? 1 : 0) + (alert ? 1 : 0);
+    const count = messages.length + (thinking ? 1 : 0) + (said ? 1 : 0);
     if (count === 0) return;
     this.scroll.scroll_to_item(count - 1);
-    if (last?.role !== "parrot" || thinking || alert || messages.length < 2) return;
+    if (last?.role !== "parrot" || thinking || said || messages.length < 2) return;
     cx.timer.after(50, (cx) => {
       this.scroll.scroll_to_item(messages.length - 2);
       cx.notify();
     });
   }
 
-  // The conversation, with an alert as its latest item: it scrolls with the rest, so nothing is
-  // squeezed, and it takes the place of the intro in a chat that is still empty.
-  chatList(t, messages, thinking, root, alert) {
+  // The conversation, with an alert or a note as its latest item: it scrolls with the rest, so
+  // nothing is squeezed, and it takes the place of the intro in a chat that is still empty.
+  chatList(t, messages, thinking, root, alert, note) {
     return v_flex().id("parrot-chat-list").flex_1().min_h(0).overflow_y_scrollbar().track_scroll(this.scroll).px(12).py(12).gap(12)
-      .when(messages.length === 0 && !thinking && !alert, (el) => el.child(this.emptyChat(t, root)))
+      .when(messages.length === 0 && !thinking && !alert && !note, (el) => el.child(this.emptyChat(t, root)))
       .children(messages.map((message, i) => this.message(t, message, i)))
       .when(thinking, (el) => el.child(h_flex().gap(8).items_center().text_size(12.5).text_color(t.muted)
         .child(image(FRAMES + "think.png").w(32).h(32))
         .child(div().child("Parrot is thinking"))
         .child(div().w(18).frames(["", ".", "..", "..."], 380))))
-      .when(Boolean(alert), (el) => el.child(div().p(10).border_2().border_color(RED_DARK).child(this.alertCard(t, alert, "chat"))));
+      .when(Boolean(alert), (el) => el.child(div().p(10).border_2().border_color(RED_DARK).child(this.alertCard(t, alert, "chat"))))
+      .when(Boolean(note), (el) => el.child(div().p(10).border_2().border_color(RED_DARK).child(this.noteCard(t, note, "chat"))));
   }
 
   composer(t, thinking) {

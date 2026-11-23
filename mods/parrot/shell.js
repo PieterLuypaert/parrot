@@ -68,7 +68,7 @@ export function isRisky(command) {
   return RISKY.some((pattern) => pattern.test(String(command ?? "")));
 }
 
-// A command as one single-quoted shell word, for parrot-put.
+// A command as one single-quoted shell word, for print -z.
 export function shellQuote(text) {
   return `'${String(text).replace(/'/g, `'\\''`)}'`;
 }

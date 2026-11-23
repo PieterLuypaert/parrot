@@ -1,11 +1,23 @@
 # parrot's zsh hook: tells parrot how each command ended, so it can startle at an error and have your
 # Claude suggest the command you meant after a typo. install.sh sources it from ~/.zshrc. It writes only under
-# ~/.parrot (or $PARROT_HOME), nothing while ~/.parrot/off exists, and starts no process per command.
+# ~/.parrot (or $PARROT_HOME), and nothing at all once ~/.parrot is gone (uninstall.sh removes it, and
+# a terminal that loaded the hook before then stays quiet). When a shell loads it, it leaves a mark,
+# ~/.parrot/shells/<pid>, so parrot can tell a terminal without the hook; after that it writes
+# nothing while ~/.parrot/off exists, and it starts no process per command.
 [[ -o interactive ]] || return 0
 zmodload zsh/datetime 2>/dev/null || return 0
 autoload -Uz add-zsh-hook
 
 typeset -g _parrot_cmd="" _parrot_start=0
+
+# The mark that this shell has the hook, also while parrot is off.
+() {
+  local home=${PARROT_HOME:-$HOME/.parrot}
+  [[ -d $home ]] || return 0
+  [[ -d $home/shells ]] || mkdir -m 700 -- "$home/shells" 2>/dev/null || return 0
+  print -r -- $$ >| "$home/shells/$$" 2>/dev/null
+  return 0
+}
 
 # $1 as the inside of a JSON string, in $REPLY.
 _parrot_escape() {
@@ -28,10 +40,10 @@ _parrot_precmd() {
   [[ -n $_parrot_cmd ]] || return 0
   local cmd=$_parrot_cmd home=${PARROT_HOME:-$HOME/.parrot}
   _parrot_cmd=""
-  [[ -e $home/off ]] && return 0
+  [[ -e $home/off || ! -d $home ]] && return 0
   local dir=$home/events
   # Only you can read it: your history lands here.
-  [[ -d $dir ]] || mkdir -m 700 -p -- "$dir" 2>/dev/null || return 0
+  [[ -d $dir ]] || mkdir -m 700 -- "$dir" 2>/dev/null || return 0
   # After a command that failed, your recent history, so your Claude knows which commands you use.
   # Ctrl-C, a closed pipe and Ctrl-Z are no errors.
   if (( code != 0 && code != 130 && code != 141 && code != 146 && code != 148 )); then
@@ -46,6 +58,3 @@ _parrot_precmd() {
 
 add-zsh-hook preexec _parrot_preexec
 precmd_functions=(_parrot_precmd ${precmd_functions:#_parrot_precmd})
-
-# Puts a command on your prompt without running it: where parrot's suggestions land.
-parrot-put() { print -z -- "$1" }

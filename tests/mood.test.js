@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shows, watched } from "../mods/parrot/mood.js";
+import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shellOf, shows, watched } from "../mods/parrot/mood.js";
 
 const zsh = { key: "shell", name: "zsh", shell: true, agent: false };
 const node = { key: "program", name: "node", shell: false, agent: false };
@@ -23,6 +23,19 @@ describe("isShell", () => {
 
   test("is false for a program started on its own", () => {
     expect(isShell(editor)).toBe(false);
+  });
+});
+
+describe("shellOf", () => {
+  test("names the shell a terminal was started as", () => {
+    expect(shellOf(shell)).toBe("zsh");
+    expect(shellOf({ argv: ["-bash"] })).toBe("bash");
+    expect(shellOf({ argv: ["/opt/homebrew/bin/fish", "-l"] })).toBe("fish");
+  });
+
+  test("names none for a program, or a shell it does not know by name", () => {
+    expect(shellOf(editor)).toBeNull();
+    expect(shellOf({ argv: ["login", "-fp", "me"], program: zsh })).toBeNull();
   });
 });
 

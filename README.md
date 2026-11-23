@@ -42,6 +42,8 @@ source ~/.zshrc   # only in terminals that were already open
 
 The installer links the mod, adds a **Parrot** button to the tab bar, binds the keys and adds one line to `~/.zshrc` for the shell hook. It backs up every file it changes first. Run it again after a `git pull`.
 
+The first time you turn the parrot on, it says hello. A terminal that has not loaded the hook gets a note with **Load it here**.
+
 ## Use
 
 - **Parrot** in the tab bar, or `⌥⌘P`: turn it on or off. It needs a terminal in the tab and sits in the top right corner.
@@ -58,10 +60,18 @@ Everything runs on your own Claude subscription through `claude -p`. Claude can 
 
 Keys, tokens and passwords are masked before anything is sent. Your `CLAUDE.md` files and auto-memory load as they do in Claude Code.
 
+## Uninstall
+
+```sh
+./uninstall.sh
+```
+
+It undoes the installer: parrot's chats leave the app, the button leaves your layouts, its keys are freed, the mod is unlinked, the hook's line leaves `~/.zshrc` and `~/.parrot` goes. It backs up every file it changes first.
+
 ## Development
 
 ```sh
-bun test                      # sprite, moods, hook, suggestions, chat and layout
+bun test                      # sprite, moods, hook, suggestions, chat, notes, layout and uninstall
 bun run frames                # redraw the frames after changing scripts/sprite.js
 herdr-app check mods/parrot   # load the mod once
 ```

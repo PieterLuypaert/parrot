@@ -96,7 +96,32 @@ export function parseAnswer({ code, stdout, stderr }) {
     return { text: json.result.trim(), session: json.session_id ?? null };
   }
   const why = (json && (json.result || json.subtype)) || firstLine(stderr) || firstLine(stdout) || `claude stopped with exit code ${code}`;
-  return { error: `Claude could not answer: ${why}` };
+  return { error: explainFailure(why) ?? `Claude could not answer: ${why}` };
+}
+
+export const MISSING_CLAUDE = "Parrot cannot find Claude Code. Install it from claude.com/claude-code, run claude once in a terminal to log in, and try again.";
+
+// Why Claude gave nothing back, as what to do about it, for the failures people run into: not
+// logged in, out of usage, too slow, overloaded or offline. Null for anything else.
+export function explainFailure(why, waited = TIMEOUT) {
+  const text = String(why ?? "");
+  if (/not logged in|please run \/login|invalid api key|oauth token (?:has )?expired/i.test(text)) {
+    return "Your Claude Code is not logged in. Run claude in a terminal, log in with /login, and try again.";
+  }
+  if (/limit/i.test(text) && /reset|reached|hit|exceeded/i.test(text)) {
+    const reset = text.match(/resets?\s+(?:at\s+)?([^·|\n]+)/i)?.[1]?.trim();
+    return `You have used up your Claude usage for now${reset ? `; it resets ${reset}` : ""}. Try again after that.`;
+  }
+  if (/timed?[ -]?out|timeout/i.test(text)) {
+    const minutes = Math.round(waited / 60000);
+    const long = waited < 60000 ? `${Math.round(waited / 1000)} seconds` : `${minutes} minute${minutes === 1 ? "" : "s"}`;
+    return `Claude took longer than ${long}, so parrot stopped waiting. Try again, or ask something narrower.`;
+  }
+  if (/overloaded|\b529\b/i.test(text)) return "Claude is overloaded right now. Try again in a minute.";
+  if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|EAI_AGAIN|getaddrinfo|fetch failed|network/i.test(text)) {
+    return "Parrot could not reach Claude. Check your internet connection and try again.";
+  }
+  return null;
 }
 
 export function projectName(cwd) {
@@ -213,7 +238,7 @@ export function parseSuggestions({ code, stdout, stderr }) {
     };
   }
   const why = (json && (json.result || json.subtype)) || firstLine(stderr) || firstLine(stdout) || `claude stopped with exit code ${code}`;
-  return { error: `Claude could not suggest: ${why}.` };
+  return { error: explainFailure(why, SUGGEST_TIMEOUT) ?? `Claude could not suggest: ${why}.` };
 }
 
 // Where claude may live when the app was opened from the Dock, with the short PATH macOS gives it.

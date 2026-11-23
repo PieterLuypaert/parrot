@@ -82,9 +82,10 @@ describe("reaction", () => {
     }
   });
 
-  test("ignores its own parrot-put and empty lines", () => {
-    expect(isOwn(event(0, " parrot-put 'git status'"))).toBe(true);
-    expect(reaction(event(1, " parrot-put 'x'"), null)).toBeNull();
+  test("ignores its own print -z and empty lines", () => {
+    expect(isOwn(event(0, " print -z -- 'git status'"))).toBe(true);
+    expect(isOwn(event(0, "printf '%s' -z"))).toBe(false);
+    expect(reaction(event(1, " print -z -- 'x'"), null)).toBeNull();
     expect(reaction(event(1, "   "), null)).toBeNull();
     expect(reaction(null, null)).toBeNull();
   });

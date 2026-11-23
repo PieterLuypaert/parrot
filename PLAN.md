@@ -1,6 +1,6 @@
 # Parrot: plan
 
-Plan version 9, 22 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
+Plan version 10, 23 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
 
 A pixel-art parrot in the Herdr app that watches while you work. When it sees an error, in your terminal or beyond it (your stack's logs, your PR's CI, your local app in the browser), it startles. Click it and your own Claude works out what went wrong and explains it in a speech bubble, with a fix as a command you run with one click. You can also ask it anything yourself, at any time.
 
@@ -68,7 +68,7 @@ A **Parrot** button in the tab bar, next to your other mod buttons such as Chart
 - **Only with a terminal in the tab:** parrot watches shells, not agents.
   - In a tab with only an agent session you cannot turn it on: the button is dim, and a click or ⌥⌘P shows a notice.
   - If the tab has a terminal pane, it watches that one, also while you type in the agent session beside it.
-- **On:** the parrot stands in the top right of the window, under the tab bar and the panes' title bar. If you drag it somewhere else, Herdr remembers that spot. From v0.5 the watcher starts too.
+- **On:** the parrot stands in the top right of the window, under the tab bar and the panes' title bar. If you drag it somewhere else, Herdr remembers that spot. The watcher, once there is one, starts too.
 - **Off:** the window closes, the watcher stops, and the hook writes nothing while `~/.parrot/off` exists. No watching, no squawk and no Claude.
 - **The button** shows a small parrot head: in colour while the parrot is out, grey while it is off or the tab has no terminal.
 
@@ -212,7 +212,7 @@ Tested on 22 November 2026 in the Herdr app, on branch `spike/perch` (not merged
    - A parrot window the button did not open itself, such as a kept window from an older version, closes at once.
 6. **The watcher as a background terminal:** a terminal from `hc run --bg --no-parent --name ...` does not show in your Herdr window.
 7. **`hc events`** only reports which program runs in the foreground (the start and end of a command), no output. So the watcher reads panes with a running program itself, every few seconds.
-8. **False alarms:** to be measured in PR 5, with real logs.
+8. **False alarms:** to be measured once the watcher is built, with real logs.
 9. **On your prompt without Enter:**
    - `hc keys` cannot type `&` or `|`; shift is ignored.
    - zsh's `print -z` does work: `hc send <t> " print -z -- '<cmd>'"` puts the command ready on the prompt, with `&&` and pipes, without starting it. The downside is one extra line in the scrollback.
@@ -237,8 +237,18 @@ Each piece is a PR of its own that works by itself.
    - the messages as chat bubbles in the parrot's colours: yours blue, its own soft red;
    - square with a 2px border, like the chat window itself; code in a block, with under each shell command a green link that puts it on your prompt (not run, the pane gets the focus); what throws away, overwrites or pushes gets a red link;
    - "Clear chat" and `/clear` empty a project's chat.
-5. **Run and checks:** the fix as one button that also runs it (also with several steps), the red label with 3 seconds to cancel, the Checked or Hunch label with the fixed list of checks, and buttons that take you to a pane, file or URL.
-6. **Finishing touches:** the squawk (an MP3), silent mode, pirate talk on or off, model choice, a README with screenshots in light and dark.
+5. **A clear first run and a clean way out** (added in plan version 10, before running fixes):
+   - a hello the first time the parrot comes out: what it watches, what it does when a command fails, and that a click asks it anything;
+   - a note when a terminal cannot tell parrot how its commands end, such as one open before the install, with a button that loads the hook there;
+   - plain words when Claude cannot answer: not logged in, out of usage, too slow, overloaded, offline or not installed;
+   - `uninstall.sh`, which undoes `install.sh`.
+6. **One look and one language** (added in plan version 10):
+   - the alert in the chat's square bubble look, with its guesses as the same links as in the chat;
+   - the same words for the same thing everywhere;
+   - the questions parrot asks for you in the language you chat in;
+   - a timer while Claude thinks, and which terminal the parrot watches.
+7. **Run and checks:** the fix as one button that also runs it (also with several steps), the red label with 3 seconds to cancel, the Checked or Hunch label with the fixed list of checks, and buttons that take you to a pane, file or URL.
+8. **Finishing touches:** the squawk (an MP3), silent mode, pirate talk on or off, model choice. The README with screenshots in light and dark came early, with 0.4.1.
 
 **Out of scope for now:** the watcher (running programs in other panes, your stack's logs, "What it saw"), your PR's CI and the browser extension.
 
@@ -252,7 +262,9 @@ Parrot follows [semver](https://semver.org). Until everything in the build order
 | 0.2.0 | Chat with parrot |
 | 0.3.0 | Startling at terminal errors, with suggestions for typos |
 | 0.4.0 | Commands from the chat on your prompt |
-| 0.5.0 | Run and checks |
+| 0.5.0 | A clear first run and a clean way out |
+| 0.6.0 | One look and one language |
+| 0.7.0 | Run and checks |
 | 1.0.0 | Finishing touches |
 
 - **Fixes in between** are patch versions, such as 0.3.1.

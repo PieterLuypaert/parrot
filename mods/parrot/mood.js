@@ -14,8 +14,13 @@ const SHELLS = ["zsh", "bash", "fish", "sh", "dash", "nu", "pwsh"];
 // A shell session: a terminal started as a shell (zsh, bash, ...). It stays one while a command
 // runs in it, and is not one while an agent such as Claude Code runs in it.
 export function isShell(terminal) {
+  return Boolean(shellOf(terminal) || terminal?.program?.shell);
+}
+
+// The shell a terminal was started as, by name, when it is one parrot knows.
+export function shellOf(terminal) {
   const exe = String(terminal?.argv?.[0] ?? "").split("/").pop().replace(/^-/, "");
-  return SHELLS.includes(exe) || Boolean(terminal?.program?.shell);
+  return SHELLS.includes(exe) ? exe : null;
 }
 
 export function isAgent(focus, terminal) {
