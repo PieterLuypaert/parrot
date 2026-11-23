@@ -4,6 +4,15 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-23
+
+Checked, or a hunch.
+
+### Added
+
+- Your Claude may run a fixed list of commands that only read, exactly as written: `git status`, `git log --oneline -10`, `git diff --stat`, `git remote -v`, `git branch --show-current`, `git stash list`, `docker ps`, `docker compose ps`, `docker compose logs --tail`, `lsof -i`, `node -v`, `npm -v`, `pnpm -v`, `bun --version`, `gh pr checks` and `gh pr view`. Claude Code refuses every other command, also one chained to these or with an option that writes, since no one is there to approve it.
+- Each answer starts with **✓ Checked** and what your Claude ran or read to be sure, or **~ Hunch** when it went by the text alone.
+
 ## [0.7.0] - 2026-11-23
 
 Run with one click.

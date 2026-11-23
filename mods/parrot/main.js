@@ -25,7 +25,7 @@ import {
 } from "herdr";
 import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, atPrompt, blinkGap, corner, find, frame, mood, samePlace, shellOf, shows, terminalLabel, watched, zoomOf } from "./mood.js";
 import {
-  MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, chatLanguage, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
+  MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, chatLanguage, claudeArgs, claudeCandidates, explainFailure, labelOf, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
 import { alertFor, headline, parseEvent, questionFor, reaction, runOutcome, wantsClaude, withRun } from "./events.js";
@@ -83,6 +83,8 @@ const PIXEL_SHADOW = "#00000055";
 const PARROT_BUBBLE_DARK = "#3a1c22";
 const PARROT_BUBBLE_LIGHT = "#fdecee";
 const BLUE_DARK = "#1c438f";
+// Hunch in the parrot's yellow, darker on a light bubble so it stays readable.
+const HUNCH_LIGHT = "#9a6700";
 
 const chats = () => shared(CHATS) ?? {};
 const busy = () => shared(BUSY) ?? {};
@@ -1103,10 +1105,22 @@ export default class Parrot extends View {
         .child(div().px(6).font_bold().bg(RED).text_color(WHITE).child("!"))
         .child(div().flex_1().min_w(0).child(message.text));
     }
+    const { label, what, text } = labelOf(message.text);
     return this.spoken(this.bubble(t)
-      .children(segments(message.text).map((piece, n) => (piece.type === "code"
+      .when(Boolean(label), (el) => el.child(this.answerLabel(t, id, label, what)))
+      .children(segments(text).map((piece, n) => (piece.type === "code"
         ? this.codeBlock(t, piece, `${id}-${n}`)
         : div().w_full().text_size(13).child(TextView.markdown(`${id}-${n}`, piece.text).selectable(true))))));
+  }
+
+  // Checked, with what your Claude ran or read to be sure, or Hunch, when it went by the text alone.
+  answerLabel(t, id, label, what) {
+    const checked = label === "checked";
+    const hunch = settings()?.dark !== false ? YELLOW : HUNCH_LIGHT;
+    return h_flex().id(`${id}-label`).gap(6).items_center().text_size(12)
+      .tooltip(checked ? "Your Claude checked this before it answered" : "Your Claude went by the terminal's text alone, without a check")
+      .child(div().font_bold().text_color(checked ? GREEN : hunch).child(checked ? "✓ Checked" : "~ Hunch"))
+      .when(checked && Boolean(what), (el) => el.child(div().flex_1().min_w(0).truncate().text_color(t.muted).child(what)));
   }
 
   // A code block in the terminal's font, and under it a link for each command it holds: one click
@@ -1201,7 +1215,7 @@ export default class Parrot extends View {
       .child(image(FRAMES + "calm.png").w(48).h(48).flex_none())
       .child(v_flex().flex_1().min_w(0).gap(6).text_size(12.5).text_color(t.muted)
         .child(div().text_size(13).font_bold().text_color(t.foreground).child(root ? `Ask anything about ${projectName(root)}` : "Open a terminal in this tab first"))
-        .child(div().child("How something works, where something lives, why a command failed. Parrot reads the project's files and the terminal's last output, and never changes anything."))
+        .child(div().child("How something works, where something lives, why a command failed. Parrot reads the project's files and the terminal's last output, may run a few read-only checks such as git status, and never changes anything."))
         .child(div().text_color(t.dim).child("On your own Claude subscription, with Sonnet.")));
   }
 
