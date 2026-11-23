@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  KEEP_MESSAGES, KEEP_PROJECTS, SUGGEST_MODEL, SUGGEST_TIMEOUT, TOOLS, chatLanguage, claudeArgs, explainFailure, languageOf, mask, parseAnswer, parseSuggestions,
+  CHECKS, KEEP_MESSAGES, KEEP_PROJECTS, SUGGEST_MODEL, SUGGEST_TIMEOUT, TOOLS, chatLanguage, labelOf, claudeArgs, explainFailure, languageOf, mask, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, withoutChat,
 } from "../mods/parrot/ask.js";
 
@@ -46,13 +46,25 @@ describe("claudeArgs", () => {
   test("asks for JSON with read-only tools and no MCP servers, the prompt last", () => {
     const args = claudeArgs({ prompt: "<terminal>…" });
     expect(args.slice(0, 3)).toEqual(["-p", "--output-format", "json"]);
-    expect(args[args.indexOf("--tools") + 1]).toBe(TOOLS);
-    expect(args[args.indexOf("--allowedTools") + 1]).toBe(TOOLS);
+    expect(args[args.indexOf("--tools") + 1]).toBe(`${TOOLS},Bash`);
+    const allowed = args[args.indexOf("--allowedTools") + 1].split(",");
+    expect(allowed.slice(0, 3)).toEqual(TOOLS.split(","));
+    expect(allowed).toContain("Bash(git status)");
+    expect(allowed).toContain("Bash(lsof -i:*)");
     expect(args).toContain("--strict-mcp-config");
     expect(args[args.indexOf("--setting-sources") + 1]).toBe("");
     expect(args).not.toContain("--bare");
     expect(args).not.toContain("--resume");
     expect(args.at(-1)).toBe("<terminal>…");
+  });
+
+  test("lets Bash run only the fixed checks, none of which writes, pushes or installs", () => {
+    const allowed = claudeArgs({ prompt: "x" })[claudeArgs({ prompt: "x" }).indexOf("--allowedTools") + 1].split(",");
+    expect(allowed).not.toContain("Bash");
+    for (const rule of allowed.filter((one) => one.startsWith("Bash("))) {
+      expect([rule, /\b(push|commit|install|add|rm|reset|checkout|merge|rebase|up|down|kill)\b/.test(rule)]).toEqual([rule, false]);
+    }
+    expect(CHECKS).toContain("git remote -v");
   });
 
   test("continues a conversation with --resume", () => {
@@ -164,6 +176,24 @@ describe("the language you chat in", () => {
   test("asks your Claude for its whys in that language", () => {
     expect(suggestPrompt({ line: "gti push", code: 127, cwd: "/code", output: "", language: "nl" })).toContain("<why_in>Dutch</why_in>");
     expect(suggestPrompt({ line: "gti push", code: 127, cwd: "/code", output: "" })).toContain("<why_in>English</why_in>");
+  });
+});
+
+describe("labelOf", () => {
+  test("reads what your Claude checked, and leaves the rest of the answer", () => {
+    expect(labelOf("Checked: git remote -v\n\nThere is no remote.")).toEqual({ label: "checked", what: "git remote -v", text: "There is no remote." });
+    expect(labelOf("**Checked:** `git status`, src/orders.ts.\nAll fine.")).toEqual({ label: "checked", what: "git status, src/orders.ts", text: "All fine." });
+  });
+
+  test("reads a hunch, also one that says it checked nothing", () => {
+    expect(labelOf("Hunch\nProbably a missing remote.")).toEqual({ label: "hunch", what: "", text: "Probably a missing remote." });
+    expect(labelOf("Checked: Hunch\n\nI can't run that.")).toEqual({ label: "hunch", what: "", text: "I can't run that." });
+    expect(labelOf("Checked:\nAll good.").label).toBe("hunch");
+  });
+
+  test("gives an answer without the line no label", () => {
+    expect(labelOf("The repo has no remote.")).toEqual({ label: null, what: "", text: "The repo has no remote." });
+    expect(labelOf("Checkout the main branch first.").label).toBeNull();
   });
 });
 

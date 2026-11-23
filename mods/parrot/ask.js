@@ -8,23 +8,36 @@ export const KEEP_PROJECTS = 12;
 export const TIMEOUT = 10 * 60 * 1000;
 export const TOOLS = "Read,Grep,Glob";
 
+// The checks your Claude may run itself, exactly as written: each only reads. Claude Code refuses
+// anything else, also when it is chained to one of these or adds an option that writes.
+export const CHECKS = [
+  "git status", "git status --short", "git log --oneline -10", "git diff --stat", "git branch --show-current", "git remote -v",
+  "git stash list", "node -v", "npm -v", "pnpm -v", "bun --version", "docker ps", "docker compose ps", "gh pr checks", "gh pr view",
+];
+// And two that take an argument after this start: a log's line count and service, and a port.
+export const CHECK_PREFIXES = ["docker compose logs --tail", "lsof -i"];
+const ALLOWED = [TOOLS, ...CHECKS.map((check) => `Bash(${check})`), ...CHECK_PREFIXES.map((check) => `Bash(${check}:*)`)].join(",");
+
 export const SYSTEM = [
   "You are Parrot, a small helper that lives in the Herdr terminal app.",
   "The person asks about the project in the current folder: how it works, where something lives, why a command fails.",
   "Read the project's files with your tools when that helps, and name the files you looked at.",
+  `To check something you may run these commands with Bash, exactly as written: ${CHECKS.join(", ")}; and docker compose logs --tail <lines> [service], or lsof -i :<port>. Never with -f or --follow. Anything else is refused.`,
   "You can only read: never say you changed anything. When something needs doing, give the command in a code block.",
+  "Start every answer with one line on its own: 'Checked: ' and only the commands you ran or the files you read this time that settle it, comma separated; or just 'Hunch' when you ran and read nothing, also when you answer from what you know. Write those two words in English.",
   "Keep answers short and concrete, in the language of the question.",
   "The person's recent terminal output comes with each question; it may have nothing to do with it.",
 ].join(" ");
 
 // Arguments for `claude -p`, the person's own Claude Code on their own login and subscription, as
-// Chartroom asks it: an answer as JSON, read-only tools, no MCP servers, none of their hooks or
-// plugins (--setting-sources ""), and the conversation so far when there is one. The prompt starts
-// with the terminal block, never with a dash, so it is never read as an option.
+// Chartroom asks it: an answer as JSON, read-only tools and the checks above, no MCP servers, none
+// of their hooks or plugins (--setting-sources ""), and the conversation so far when there is one.
+// Bash is there for the checks only: without anyone to approve it, every other command is refused.
+// The prompt starts with the terminal block, never with a dash, so it is never read as an option.
 export function claudeArgs({ prompt, session, model = MODEL }) {
   const args = [
     "-p", "--output-format", "json", "--model", model, "--system-prompt", SYSTEM,
-    "--tools", TOOLS, "--allowedTools", TOOLS, "--strict-mcp-config", "--setting-sources", "",
+    "--tools", `${TOOLS},Bash`, "--allowedTools", ALLOWED, "--strict-mcp-config", "--setting-sources", "",
   ];
   if (session) args.push("--resume", session);
   args.push(prompt);
@@ -122,6 +135,19 @@ export function explainFailure(why, waited = TIMEOUT) {
     return "Parrot could not reach Claude. Check your internet connection and try again.";
   }
   return null;
+}
+
+// The line your Claude starts an answer with: what it checked, or that it is a hunch, and the
+// answer without that line. An older answer, or one without it, has no label.
+export function labelOf(text) {
+  const all = String(text ?? "");
+  const [first, ...rest] = all.split("\n");
+  const found = first.replace(/[*_`]/g, "").trim().match(/^(checked|hunch)\b\s*[:·-]?\s*(.*)$/i);
+  if (!found) return { label: null, what: "", text: all };
+  const what = found[2].trim().replace(/\.$/, "");
+  // "Checked" with nothing checked, as in "Checked: Hunch", is a hunch.
+  const label = found[1].toLowerCase() === "checked" && what && !/^hunch\b/i.test(what) ? "checked" : "hunch";
+  return { label, what: label === "checked" ? what : "", text: rest.join("\n").replace(/^\s*\n/, "") };
 }
 
 export function projectName(cwd) {
