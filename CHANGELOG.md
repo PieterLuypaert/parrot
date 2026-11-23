@@ -4,6 +4,14 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-23
+
+Nothing beyond your machine on one click.
+
+### Fixed
+
+- Commands that change things beyond your machine count down three seconds before Run and show red, as deleting does: anything `gh` does beyond looking (creating a repo, merging or closing a PR, a release, a workflow run, a secret), `gh api` with a writing method, applying or scaling infrastructure (`kubectl apply`, `terraform apply`), deploys (`fly`, `vercel --prod`, `firebase`, `wrangler` and the like), and publishing packages or images (`docker push`, `cargo publish`). Looking stays one click: `gh pr view`, `kubectl get`, `terraform plan`.
+
 ## [0.10.0] - 2026-11-23
 
 Explain, or fix it.
