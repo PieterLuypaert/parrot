@@ -102,6 +102,13 @@ describe("the alert", () => {
     expect(questionFor(alertFor(event(2), { terminal: "t1", id: "a" }))).toContain("exit code 2");
   });
 
+  test("asks in the language you chat in, and in English for one it does not know", () => {
+    const failed = alertFor(event(2, "pnpm test"), { terminal: "t1", id: "a" });
+    expect(questionFor(failed, "nl")).toBe("`pnpm test` faalde met exitcode 2. Waarom, en hoe los ik het op? De output staat in de terminal.");
+    expect(questionFor(alertFor(event(127, "gti"), { terminal: "t1", id: "a" }), "de")).toContain("findet diesen Befehl nicht");
+    expect(questionFor(failed, "ja")).toBe(questionFor(failed, "en"));
+  });
+
   test("keeps the terminal, the suggestions and what kind of error it is", () => {
     const alert = alertFor(event(127, "gti"), { terminal: "t1", id: "a", suggestions: [{ command: "git", why: "x" }] });
     expect(alert).toMatchObject({ terminal: "t1", kind: "not-found", suggestions: [{ command: "git" }] });

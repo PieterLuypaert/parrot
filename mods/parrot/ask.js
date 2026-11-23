@@ -152,6 +152,42 @@ export function withoutChat(chats, cwd) {
   return without(chats, cwd);
 }
 
+// ---- The language you chat in ----
+
+// Words that each mark one language and none of the others, so a short question is enough.
+const MARKERS = {
+  en: ["the", "what", "why", "how", "where", "this", "that", "does", "should", "with", "my", "and", "it", "you", "can", "of"],
+  nl: ["het", "een", "wat", "waarom", "hoe", "waar", "dit", "dat", "niet", "ik", "je", "mijn", "wordt", "deze", "kan", "moet", "zijn", "ook", "van", "voor", "met", "werkt", "faalt"],
+  fr: ["le", "les", "une", "est", "pourquoi", "comment", "où", "cette", "je", "pas", "pour", "avec", "et", "du", "des", "mon", "ne"],
+  de: ["der", "das", "ein", "eine", "ist", "warum", "wie", "wo", "ich", "nicht", "und", "mit", "für", "auf", "mein", "funktioniert"],
+  es: ["el", "los", "las", "una", "por", "qué", "cómo", "dónde", "esto", "yo", "para", "con", "mi", "funciona", "está"],
+};
+export const LANGUAGES = { en: "English", nl: "Dutch", fr: "French", de: "German", es: "Spanish" };
+
+// The language of a question, by the words only it uses: null when it is too short to tell, or a
+// language parrot does not know.
+export function languageOf(text) {
+  const words = String(text ?? "").toLowerCase().replace(/`[^`]*`/g, " ").match(/[\p{L}']+/gu) ?? [];
+  const scores = Object.entries(MARKERS)
+    .map(([lang, markers]) => [lang, words.filter((word) => markers.includes(word)).length])
+    .sort((a, b) => b[1] - a[1]);
+  const [[best, top], [, next]] = scores;
+  return top >= 2 && top > next ? best : null;
+}
+
+// The language you chat in: that of the last question you typed yourself, in any project. Questions
+// parrot asked for you do not count.
+export function chatLanguage(chats) {
+  const asked = Object.values(chats ?? {})
+    .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
+    .flatMap((chat) => [...(chat.messages ?? [])].reverse().filter((message) => message.role === "you" && !message.auto));
+  for (const message of asked) {
+    const lang = languageOf(message.text);
+    if (lang) return lang;
+  }
+  return "en";
+}
+
 // ---- What you meant, from your Claude ----
 
 export const SUGGEST_MODEL = "haiku";
@@ -167,7 +203,7 @@ export const SUGGEST_SYSTEM = [
   "Every suggestion is a version of the line they just typed. The recent lines only show how they work: never suggest a fix for one of those.",
   "Only real commands for their tools and this project, always written out in full: never a shell alias or a shortcut. Keep the arguments that were right. A tool's own suggestion in the output is usually right.",
   "Never suggest a command that deletes data, rewrites history or pushes, unless the person typed one.",
-  "Each why is at most six words. If nothing fits, give none.",
+  "Each why is at most six words, in the language the why_in tag names. If nothing fits, give none.",
 ].join(" ");
 
 export const SUGGEST_SCHEMA = {
@@ -203,7 +239,7 @@ const attribute = (text) => mask(String(text ?? "")).replace(/"/g, "'");
 
 // The prompt: the line and how it ended, the project's scripts and the commands the person uses
 // most, all masked. It starts with a tag, never with a dash.
-export function suggestPrompt({ line, code, cwd, output, scripts = [], history = [] }) {
+export function suggestPrompt({ line, code, cwd, output, scripts = [], history = [], language = "en" }) {
   const used = new Map();
   for (const entry of history) {
     const first = String(entry).trim().split(/\s+/)[0];
@@ -217,6 +253,7 @@ export function suggestPrompt({ line, code, cwd, output, scripts = [], history =
     `<scripts>${scripts.map((s) => s.command).join(", ") || "(none)"}</scripts>`,
     `<commands_they_use>${top || "(unknown)"}</commands_they_use>`,
     `<recent_lines>\n${recent || "(none)"}\n</recent_lines>`,
+    `<why_in>${LANGUAGES[language] ?? "English"}</why_in>`,
   ].join("\n");
 }
 

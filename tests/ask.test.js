@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  KEEP_MESSAGES, KEEP_PROJECTS, SUGGEST_MODEL, SUGGEST_TIMEOUT, TOOLS, claudeArgs, explainFailure, mask, parseAnswer, parseSuggestions,
+  KEEP_MESSAGES, KEEP_PROJECTS, SUGGEST_MODEL, SUGGEST_TIMEOUT, TOOLS, chatLanguage, claudeArgs, explainFailure, languageOf, mask, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, withoutChat,
 } from "../mods/parrot/ask.js";
 
@@ -127,6 +127,43 @@ describe("parseAnswer", () => {
   test("says why when the output is no JSON at all", () => {
     expect(parseAnswer({ code: 1, stdout: "", stderr: "Unexpected token\nat line 3" }).error).toBe("Claude could not answer: Unexpected token");
     expect(parseAnswer({ code: 2, stdout: "", stderr: "" }).error).toBe("Claude could not answer: claude stopped with exit code 2");
+  });
+});
+
+describe("the language you chat in", () => {
+  test("tells a question's language by the words only that language uses", () => {
+    expect(languageOf("waarom faalt deze test niet?")).toBe("nl");
+    expect(languageOf("where does this project send its mails?")).toBe("en");
+    expect(languageOf("pourquoi le build ne passe pas ?")).toBe("fr");
+    expect(languageOf("warum ist der Build rot?")).toBe("de");
+    expect(languageOf("¿por qué falla el build?")).toBe("es");
+  });
+
+  test("does not guess from a word or two, or from the commands in a question", () => {
+    expect(languageOf("pnpm lint")).toBeNull();
+    expect(languageOf("`git push --force-with-lease`?")).toBeNull();
+    expect(languageOf("")).toBeNull();
+  });
+
+  test("is that of the last question you typed, never one parrot asked for you", () => {
+    const chats = {
+      "/code/old": { at: 1, messages: [{ role: "you", text: "where does this project start?" }] },
+      "/code/shop": {
+        at: 2,
+        messages: [
+          { role: "you", text: "waarom werkt de login niet?" },
+          { role: "parrot", text: "Omdat ..." },
+          { role: "you", text: "`gitce` failed with exit code 127. Why, and how do I fix it?", auto: true },
+        ],
+      },
+    };
+    expect(chatLanguage(chats)).toBe("nl");
+    expect(chatLanguage({})).toBe("en");
+  });
+
+  test("asks your Claude for its whys in that language", () => {
+    expect(suggestPrompt({ line: "gti push", code: 127, cwd: "/code", output: "", language: "nl" })).toContain("<why_in>Dutch</why_in>");
+    expect(suggestPrompt({ line: "gti push", code: 127, cwd: "/code", output: "" })).toContain("<why_in>English</why_in>");
   });
 });
 

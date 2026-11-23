@@ -25,7 +25,7 @@ import {
 } from "herdr";
 import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shellOf, shows, watched, zoomOf } from "./mood.js";
 import {
-  MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
+  MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, chatLanguage, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
 import { alertFor, headline, parseEvent, questionFor, reaction, wantsClaude } from "./events.js";
@@ -420,7 +420,7 @@ export default class Parrot extends View {
       result = { error: MISSING_CLAUDE };
     } else {
       try {
-        const prompt = suggestPrompt({ line: alert.cmd, code: alert.code, cwd: alert.cwd, output, scripts, history });
+        const prompt = suggestPrompt({ line: alert.cmd, code: alert.code, cwd: alert.cwd, output, scripts, history, language: chatLanguage(chats()) });
         result = parseSuggestions(await exec(bin, suggestArgs(prompt), { cwd: alert.cwd, timeout: SUGGEST_TIMEOUT }));
       } catch (error) {
         const why = String(error?.message ?? error);
@@ -553,9 +553,11 @@ export default class Parrot extends View {
         notify({ title: "Parrot is still answering", body: "Ask again when the answer is in.", level: "info" });
         return;
       }
-      const question = questionFor(alert);
+      // Asked in the language you chat in, so the answer comes in it too; it is parrot's question, not
+      // yours, so it never sets that language.
+      const question = questionFor(alert, chatLanguage(chats()));
       const branch = panes().find((pane) => pane.terminal === alert.terminal)?.branch ?? null;
-      setShared(CHATS, withMessage(chats(), root, { role: "you", text: question, id: messageId() }));
+      setShared(CHATS, withMessage(chats(), root, { role: "you", text: question, id: messageId(), auto: true }));
       setShared(BUSY, { ...busy(), [root]: true });
       setShared(ASK, { id: messageId(), root, cwd: alert.cwd, address: alert.terminal, branch, question });
       cx.notify();
