@@ -12,6 +12,8 @@ const layout = {
     { id: "work", type: "block", content: { mod: "terminals-pane" } },
   ],
 };
+// A layout whose tab bar install.sh had to put in a row of its own, as for Herdr's own layouts.
+const bare = { id: "root", type: "column", children: [{ id: "tabs", type: "block", size: { px: 42 }, content: { mod: "tabs" } }, { id: "work", type: "block" }] };
 const json = (path) => JSON.parse(readFileSync(path, "utf8"));
 const write = (path, value) => writeFileSync(path, typeof value === "string" ? value : JSON.stringify(value));
 
@@ -24,16 +26,23 @@ function installed({ appOpen = false, answers = true } = {}) {
   const home = join(root, "home");
   const app = join(home, ".config", "herdr-app");
   const zdot = join(root, "zdot");
-  for (const dir of [join(app, "layouts"), join(app, "mods"), zdot, join(home, ".parrot", "events"), join(root, "bin")]) mkdirSync(dir, { recursive: true });
-  const added = Bun.spawnSync(["jq", "-c", "-f", join(repo, "layout.jq")], { stdin: Buffer.from(JSON.stringify(layout)) });
-  write(join(app, "layouts", "main-safe.json"), added.stdout.toString());
+  for (const dir of [join(app, "layouts"), join(app, "mods"), zdot, join(home, ".parrot", "events"), join(home, ".parrot", "shells"), join(root, "bin")]) {
+    mkdirSync(dir, { recursive: true });
+  }
+  const withButton = (one) => Bun.spawnSync(["jq", "-c", "-f", join(repo, "layout.jq")], { stdin: Buffer.from(JSON.stringify(one)) }).stdout.toString();
+  write(join(app, "layouts", "main-safe.json"), withButton(layout));
+  write(join(app, "layouts", "bare-parrot.json"), withButton(bare));
   write(join(app, "layouts", "plain.json"), layout);
-  write(join(app, "keys.json"), { global: { "cmd-alt-p": "parrot.toggle", "cmd-alt-shift-p": "parrot.chat", "cmd-k": "palette.open" } });
+  write(join(app, "keys.json"), {
+    global: { "cmd-alt-p": "parrot.toggle", "cmd-alt-shift-p": "parrot.chat", "cmd-k": "palette.open" },
+    terminal: { "ctrl-p": "parrot.chat", "ctrl-l": "terminal.clear" },
+  });
   write(join(app, "shared.json"), { layout: "main-safe", "parrot.on": true, "parrot.chats": { "/code/shop": { messages: [] } } });
   symlinkSync(join(repo, "mods", "parrot"), join(app, "mods", "parrot"));
   write(join(zdot, ".zshrc"), `export EDITOR=vim\n\n[ -f "${repo}/hook.zsh" ] && source "${repo}/hook.zsh"  ${mark}\n`);
   write(join(home, ".parrot", "off"), "");
   write(join(home, ".parrot", "events", "123.json"), "{}");
+  write(join(home, ".parrot", "shells", "123"), "123");
   const calls = join(root, "calls");
   const herdr = join(root, "bin", "herdr-app");
   const answer = answers ? '{"ok": true}' : '{"error": "unknown command"}';
@@ -55,7 +64,8 @@ describe("uninstall.sh", () => {
     const { code, out } = uninstall(place);
     expect(code).toBe(0);
     expect(json(join(place.app, "layouts", "main-safe.json"))).toEqual(layout);
-    expect(json(join(place.app, "keys.json"))).toEqual({ global: { "cmd-k": "palette.open" } });
+    expect(json(join(place.app, "layouts", "bare-parrot.json"))).toEqual(bare);
+    expect(json(join(place.app, "keys.json"))).toEqual({ global: { "cmd-k": "palette.open" }, terminal: { "ctrl-l": "terminal.clear" } });
     expect(existsSync(join(place.app, "mods", "parrot"))).toBe(false);
     expect(readFileSync(join(place.zdot, ".zshrc"), "utf8")).toBe("export EDITOR=vim\n");
     expect(existsSync(join(place.home, ".parrot"))).toBe(false);
@@ -65,6 +75,18 @@ describe("uninstall.sh", () => {
       expect(kept.some((file) => file.startsWith(name))).toBe(true);
     }
     expect(out).toContain("Parrot is out.");
+  });
+
+  test("leaves another project's mod called parrot alone", () => {
+    const place = installed();
+    const other = join(place.root, "other", "mods", "parrot");
+    mkdirSync(other, { recursive: true });
+    const mod = join(place.app, "mods", "parrot");
+    Bun.spawnSync(["rm", mod]);
+    symlinkSync(other, mod);
+    const { out } = uninstall(place);
+    expect(lstatSync(mod).isSymbolicLink()).toBe(true);
+    expect(out).toContain("another project's mod");
   });
 
   test("leaves layouts without the button, other keys and other mods alone", () => {

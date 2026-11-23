@@ -64,32 +64,37 @@ remove_buttons() {
   [ -n "$found" ] || echo "layout: none has the button"
 }
 
-# Every key in keys.json bound to parrot, so also one you moved; others are left alone.
+# Every key in keys.json bound to parrot, in any section, so also one you moved; others are left
+# alone.
+parrot_keys='paths(type == "string" and (startswith("parrot.") or . == "mod.open:parrot"))'
 free_keys() {
   keys="$app_home/keys.json"
   if [ ! -f "$keys" ]; then echo "key: there is no keys.json"; return; fi
-  ours=$(jq -r '(.global // {}) | to_entries[] | select((.value | type) == "string" and (.value | startswith("parrot.") or . == "mod.open:parrot")) | .key' "$keys")
+  ours=$(jq -r "$parrot_keys | map(tostring) | join(\" \")" "$keys")
   if [ -z "$ours" ]; then echo "key: none is bound to parrot"; return; fi
   cp "$keys" "$keys.backup-$stamp"
-  for key in $ours; do
-    jq --arg k "$key" 'del(.global[$k])' "$keys" >"$keys.tmp" || { rm -f "$keys.tmp"; fail "could not free $key in $keys"; }
-    mv "$keys.tmp" "$keys"
-    echo "key: $key is free again"
-  done
+  jq "delpaths([$parrot_keys])" "$keys.backup-$stamp" >"$keys.tmp" || { rm -f "$keys.tmp"; fail "could not free parrot's keys in $keys"; }
+  mv "$keys.tmp" "$keys"
+  echo "$ours" | while read -r section key; do echo "key: $key ($section) is free again"; done
   echo "key: keys.json was kept as keys.json.backup-$stamp"
 }
 
-# A link to a parrot checkout's mod, as install.sh makes it; anything else there is left alone.
+# A link to a parrot checkout's mod, as install.sh tells it: its target is called mods/parrot and
+# holds parrot's own mood.js. Anything else there is left alone.
 unlink_mod() {
   dest="$app_home/mods/parrot"
   if [ ! -L "$dest" ]; then
     if [ -e "$dest" ]; then echo "mod: $dest is not a parrot checkout's link, so it stays" >&2; else echo "mod: not linked"; fi
     return
   fi
-  case "$(readlink "$dest")" in
-    */mods/parrot) rm "$dest" && echo "mod: unlinked $dest" ;;
-    *) echo "mod: $dest links somewhere else, so it stays" >&2 ;;
+  target=$(readlink "$dest")
+  case "$target" in
+    */mods/parrot) ;;
+    *) echo "mod: $dest links somewhere else, so it stays" >&2; return ;;
   esac
+  if [ -e "$target" ] && [ ! -f "$target/mood.js" ]; then echo "mod: $dest links to another project's mod, so it stays" >&2; return; fi
+  rm "$dest"
+  echo "mod: unlinked $dest"
 }
 
 # The hook's line in ~/.zshrc goes, with the empty line install.sh put before it. Written through,
@@ -109,14 +114,14 @@ remove_hook() {
   echo "hook: $rc no longer loads it ($rc was kept as $rc.backup-$stamp)"
 }
 
-# What the hook wrote: how your commands ended, and your history after a failure. A folder that
-# holds anything else is not parrot's alone, so it stays.
+# What the hook wrote: how your commands ended, your history after a failure, and its marks. A
+# folder that holds anything else is not parrot's alone, so it stays.
 remove_home() {
   if [ ! -d "$parrot_home" ]; then echo "data: there is no $parrot_home"; return; fi
   for entry in "$parrot_home"/* "$parrot_home"/.[!.]*; do
     [ -e "$entry" ] || continue
     case "${entry##*/}" in
-      events|off) ;;
+      events|shells|off) ;;
       *) echo "data: $parrot_home holds more than parrot's own files, so it stays: remove it yourself" >&2; return ;;
     esac
   done
