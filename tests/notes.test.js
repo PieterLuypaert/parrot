@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { HOOK_MARK, heardSince, hookPath, noteFor } from "../mods/parrot/notes.js";
+import { HOOK_MARK, hookPath, noteFor } from "../mods/parrot/notes.js";
 
 describe("hookPath", () => {
   test("finds the hook from the line install.sh writes", () => {
@@ -11,17 +11,6 @@ describe("hookPath", () => {
     expect(hookPath("alias g=git\n")).toBeNull();
     expect(hookPath(`# [ -f "/code/parrot/hook.zsh" ] && source "/code/parrot/hook.zsh"  ${HOOK_MARK}`)).toBeNull();
     expect(hookPath(null)).toBeNull();
-  });
-});
-
-describe("heardSince", () => {
-  test("hears a command the hook reported after it started", () => {
-    expect(heardSince({ at: 1000.5 }, 1000_000)).toBe(true);
-  });
-
-  test("does not hear an older report, or none", () => {
-    expect(heardSince({ at: 900 }, 1000_000)).toBe(false);
-    expect(heardSince(null, 1000_000)).toBe(false);
   });
 });
 

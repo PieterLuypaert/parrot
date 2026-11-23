@@ -29,7 +29,7 @@ import {
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
 import { alertFor, headline, parseEvent, questionFor, reaction, wantsClaude } from "./events.js";
-import { HOOK_GRACE, heardSince, hookPath, noteFor } from "./notes.js";
+import { HOOK_GRACE, hookPath, noteFor } from "./notes.js";
 import { isRisky, scriptsFrom, segments, shellQuote } from "./shell.js";
 
 const FRAMES = "mods/parrot/frames/";
@@ -256,9 +256,9 @@ export default class Parrot extends View {
     this.lastAsk = shared(ASK)?.id ?? null;
     this.lastPlea = shared(PLEA)?.id ?? null;
     this.alertShown = null;
-    this.running = null;
     this.heard = new Set();
     this.noted = new Set();
+    this.lookingFor = new Set();
     if (checking()) return;
     for (const id of [shared(CHAT), shared(OVERLAY), shared(ALERT_WINDOW)]) if (id) closeOverlay(id);
     setShared(ALERT, null);
@@ -293,6 +293,7 @@ export default class Parrot extends View {
   forget() {
     for (const id of [shared(CHAT), shared(OVERLAY), shared(ALERT_WINDOW)]) if (id) closeOverlay(id);
     for (const key of KEPT) setShared(key, null);
+    this.markOff(true);
   }
 
   // On or off, from the button or ⌥⌘P. Turning it on needs a terminal in the tab to watch.
@@ -348,15 +349,17 @@ export default class Parrot extends View {
     });
   }
 
-  // The folder only you can read, without the files of shells that are gone.
+  // The folder only you can read, without the files and marks of shells that are gone.
   async prepareEvents(dir) {
     if (this.prepared) return;
-    const made = await exec("sh", ["-c", 'mkdir -m 700 -p "$1/events" && chmod 700 "$1" "$1/events"', "sh", parrotHome()]);
+    const made = await exec("sh", ["-c", 'mkdir -m 700 -p "$1/events" "$1/shells" && chmod 700 "$1" "$1/events" "$1/shells"', "sh", parrotHome()]);
     if (made.code !== 0) throw new Error(`could not make ${dir}: ${tail(made.stderr, 1)}`);
-    const listing = await exec("ls", [dir]);
     const alive = new Set(terminals().map((one) => String(one.pid)));
-    const gone = lines(listing.stdout).filter((name) => /^\d+\./.test(name) && !alive.has(name.split(".")[0]));
-    if (gone.length) await exec("rm", ["-f", ...gone.map((name) => `${dir}/${name}`)]);
+    for (const folder of [dir, `${parrotHome()}/shells`]) {
+      const listing = await exec("ls", [folder]);
+      const gone = lines(listing.stdout).filter((name) => /^\d+(\.|$)/.test(name) && !alive.has(name.split(".")[0]));
+      if (gone.length) await exec("rm", ["-f", ...gone.map((name) => `${folder}/${name}`)]);
+    }
     this.prepared = true;
   }
 
@@ -489,24 +492,27 @@ export default class Parrot extends View {
     openAlert(shared(CORNER) ?? { x: ALERT_W, y: 80 });
   }
 
-  // A command that ends in the watched zsh with no word from the hook means that shell never loaded
-  // it: it was opened before the install, say. Another shell parrot cannot hear at all. Either way
-  // it says so, once per shell, and not over another note.
+  // A zsh that loaded the hook has left its mark under ~/.parrot/shells, or reported a command, as
+  // an older hook did; one with neither never loaded it, such as a terminal open before the install.
+  // Parrot looks a moment after it starts to watch a terminal, so a new one can load ~/.zshrc first.
+  // Another shell it cannot hear at all. Either way it says so once per shell. A terminal on another
+  // machine is left alone: its hook writes there.
   listen(terminal, cx) {
-    if (!terminal || shared(ON) !== true) return;
+    if (!terminal || shared(ON) !== true || String(terminal.address).includes("/")) return;
     const shell = shellOf(terminal);
     if (shell && shell !== "zsh") return this.noteOnce(terminal, { kind: "not-zsh", shell });
-    const running = runsCommand(terminal);
-    const ran = this.running;
-    if (running && ran?.address !== terminal.address) this.running = { address: terminal.address, pid: terminal.pid, since: Date.now() };
-    if (running || ran?.address !== terminal.address) return;
-    this.running = null;
-    if (this.heard.has(ran.pid) || this.noted.has(ran.pid)) return;
+    const pid = terminal.pid;
+    if (shell !== "zsh" || !pid || this.heard.has(pid) || this.noted.has(pid) || this.lookingFor.has(pid)) return;
+    this.lookingFor.add(pid);
     cx.spawn(async (cx) => {
       await cx.sleep(HOOK_GRACE);
-      const event = parseEvent(await readTextFile(`${parrotHome()}/events/${ran.pid}.json`));
-      if (heardSince(event, ran.since)) return this.heard.add(ran.pid);
-      this.noteOnce(terminal, { kind: "no-hook", hook: hookPath(await this.zshrc()) });
+      const [mark, event] = await Promise.all([readTextFile(`${parrotHome()}/shells/${pid}`), readTextFile(`${parrotHome()}/events/${pid}.json`)]);
+      this.lookingFor.delete(pid);
+      if (mark !== null || event !== null) return this.heard.add(pid);
+      // Off by now, or watching another terminal: it looks again when it watches this one.
+      const now = this.terminal();
+      if (shared(ON) !== true || now?.pid !== pid) return;
+      this.noteOnce(now, { kind: "no-hook", hook: hookPath(await this.zshrc()) });
       cx.notify();
     });
   }

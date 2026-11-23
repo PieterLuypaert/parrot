@@ -1,13 +1,23 @@
 # parrot's zsh hook: tells parrot how each command ended, so it can startle at an error and have your
 # Claude suggest the command you meant after a typo. install.sh sources it from ~/.zshrc. It writes only under
-# ~/.parrot (or $PARROT_HOME), nothing while ~/.parrot/off exists or ~/.parrot is gone (uninstall.sh
-# removes it, and a terminal that loaded the hook before then stays quiet), and starts no process per
-# command.
+# ~/.parrot (or $PARROT_HOME), and nothing at all once ~/.parrot is gone (uninstall.sh removes it, and
+# a terminal that loaded the hook before then stays quiet). When a shell loads it, it leaves a mark,
+# ~/.parrot/shells/<pid>, so parrot can tell a terminal without the hook; after that it writes
+# nothing while ~/.parrot/off exists, and it starts no process per command.
 [[ -o interactive ]] || return 0
 zmodload zsh/datetime 2>/dev/null || return 0
 autoload -Uz add-zsh-hook
 
 typeset -g _parrot_cmd="" _parrot_start=0
+
+# The mark that this shell has the hook, also while parrot is off.
+() {
+  local home=${PARROT_HOME:-$HOME/.parrot}
+  [[ -d $home ]] || return 0
+  [[ -d $home/shells ]] || mkdir -m 700 -- "$home/shells" 2>/dev/null || return 0
+  print -r -- $$ >| "$home/shells/$$" 2>/dev/null
+  return 0
+}
 
 # $1 as the inside of a JSON string, in $REPLY.
 _parrot_escape() {

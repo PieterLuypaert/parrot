@@ -49,6 +49,15 @@ describe("hook.zsh", () => {
     expect(existsSync(join(home, "events"))).toBe(false);
   });
 
+  test("marks a shell that loads it, also while parrot is off", () => {
+    const home = mkdtempSync(join(tmpdir(), "parrot-hook-"));
+    writeFileSync(join(home, "off"), "");
+    const shell = Bun.spawnSync(["zsh", "-f", "-i", "-c", `source ${JSON.stringify(hook)}; print -r -- $$`], { env: { ...process.env, PARROT_HOME: home } });
+    const pid = shell.stdout.toString().trim();
+    expect(readFileSync(join(home, "shells", pid), "utf8").trim()).toBe(pid);
+    expect(statSync(join(home, "shells")).mode & 0o777).toBe(0o700);
+  });
+
   test("writes nothing, and makes no folder, once parrot's folder is gone", () => {
     const home = join(mkdtempSync(join(tmpdir(), "parrot-hook-")), ".parrot");
     run(home, ["false"]);

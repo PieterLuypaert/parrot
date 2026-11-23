@@ -4,19 +4,14 @@
 // The line install.sh adds to ~/.zshrc ends with this.
 export const HOOK_MARK = "# parrot: tells parrot how each command ended";
 
-// How long after a command ends the hook has to report it before parrot takes the shell as deaf.
-export const HOOK_GRACE = 2500;
+// How long a terminal parrot starts to watch gets to load ~/.zshrc, and with it the hook, before
+// parrot looks for the hook's mark.
+export const HOOK_GRACE = 5000;
 
 // The hook ~/.zshrc loads, from the line install.sh wrote there; null when it loads none.
 export function hookPath(rc) {
   const line = String(rc ?? "").split("\n").find((one) => one.includes(HOOK_MARK) && !/^\s*#/.test(one));
   return line?.match(/source "([^"]+)"/)?.[1] ?? null;
-}
-
-// Whether the hook reported a command that ended after `since` (ms): when a command ends in a zsh
-// and nothing comes, that shell never loaded the hook.
-export function heardSince(event, since) {
-  return Boolean(event && event.at * 1000 >= since - 1000);
 }
 
 // A note's title, lines and button.
