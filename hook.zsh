@@ -46,6 +46,3 @@ _parrot_precmd() {
 
 add-zsh-hook preexec _parrot_preexec
 precmd_functions=(_parrot_precmd ${precmd_functions:#_parrot_precmd})
-
-# Puts a command on your prompt without running it: where parrot's suggestions land.
-parrot-put() { print -z -- "$1" }

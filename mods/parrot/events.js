@@ -16,9 +16,9 @@ export function parseEvent(text) {
   }
 }
 
-// The command parrot-put ran to put a suggestion on the prompt is parrot's own, not yours.
+// The print -z parrot sends to put a command on the prompt is its own, not yours.
 export function isOwn(event) {
-  return /^\s*parrot-put\b/.test(event.cmd);
+  return /^\s*print -z -- /.test(event.cmd);
 }
 
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

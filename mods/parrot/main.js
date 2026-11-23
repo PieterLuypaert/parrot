@@ -22,7 +22,7 @@ import {
   checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, settings, setShared,
   shared, terminals, theme, watchFolder,
 } from "herdr";
-import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shows, watched } from "./mood.js";
+import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shellOf, shows, watched } from "./mood.js";
 import {
   MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
@@ -110,7 +110,8 @@ function putCommand(alert, command) {
 }
 
 // Puts a command on that terminal's prompt and focuses its pane: "put", "busy" (something still
-// runs there) or "gone".
+// runs there, or it is no zsh) or "gone". zsh's own print -z does it, so it works also in a shell
+// that never loaded parrot's hook.
 function putOnPrompt(address, command) {
   const terminal = terminals().find((one) => one.address === address);
   if (!terminal) {
@@ -121,7 +122,12 @@ function putOnPrompt(address, command) {
     notify({ title: "Something still runs in that terminal", body: "Parrot puts the command on the prompt once you are back at it: click again then.", level: "info" });
     return "busy";
   }
-  hc(["send", address, ` parrot-put ${shellQuote(command)}`])
+  const shell = shellOf(terminal);
+  if (shell && shell !== "zsh") {
+    notify({ title: `Parrot cannot type into ${shell}`, body: "It puts commands on the prompt only in zsh. Copy this one instead.", level: "info" });
+    return "busy";
+  }
+  hc(["send", address, ` print -z -- ${shellQuote(command)}`])
     .then((sent) => { if (sent.code !== 0) throw new Error(tail(sent.stderr, 1) || `hc send ended with ${sent.code}`); })
     .catch((error) => notify({ title: "Parrot could not reach the terminal", body: String(error?.message ?? error), level: "error" }));
   run("pane.focus", { terminal: address });

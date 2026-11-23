@@ -49,11 +49,8 @@ describe("hook.zsh", () => {
     expect(existsSync(join(home, "events"))).toBe(false);
   });
 
-  test("puts a command on the prompt with parrot-put, without running it", () => {
+  test("prints nothing of its own", () => {
     const home = mkdtempSync(join(tmpdir(), "parrot-hook-"));
-    const out = run(home, []).trim();
-    expect(out).toBe("");
-    const shell = Bun.spawnSync(["zsh", "-f", "-i", "-c", `source ${JSON.stringify(hook)}; whence -w parrot-put`]);
-    expect(shell.stdout.toString().trim()).toBe("parrot-put: function");
+    expect(run(home, ["true"]).trim()).toBe("");
   });
 });
