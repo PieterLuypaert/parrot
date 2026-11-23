@@ -29,6 +29,7 @@ import {
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
 import { alertFor, headline, parseEvent, questionFor, reaction, runOutcome, wantsClaude, withRun } from "./events.js";
+import { editorCandidates, filePlaces, fileTarget, linkTarget, linkify, terminalsBlock } from "./links.js";
 import { HOOK_GRACE, hookPath, noteFor } from "./notes.js";
 import { hasPlaceholder, isRisky, runLineOf, scriptsFrom, segments, shellQuote } from "./shell.js";
 
@@ -184,6 +185,21 @@ function runInTerminal(address, line, key, afterRun) {
     .catch((error) => {
       setShared(RUNS, withRun(shared(RUNS), { ...one, state: "unsent" }));
       notify({ title: "Parrot could not run it in the terminal", body: String(error?.message ?? error), level: "error" });
+    });
+}
+
+// The terminals in the space you look at, as your Claude gets them and as links name them: what
+// runs in each (the shell, a program and its first words, or an agent) and its folder, masked.
+function spaceTerminals(watchedAddress) {
+  const space = focused()?.space;
+  const all = panes();
+  return terminals()
+    .filter((one) => one.state === "live" && (!space || one.labels?.["herdr.space"] === space))
+    .map((one) => {
+      const pane = all.find((p) => p.terminal === one.address);
+      const words = (one.foreground?.argv ?? []).map((word) => String(word).split("/").pop()).slice(0, 3).join(" ");
+      const running = one.program?.agent ? one.program.name : atPrompt(one) ? shellOf(one) ?? "shell" : words || one.program?.name || "a program";
+      return { address: one.address, running: mask(running), folder: projectName(pane?.cwd ?? one.cwd ?? ""), watched: one.address === watchedAddress };
     });
 }
 
@@ -632,7 +648,7 @@ export default class Parrot extends View {
   // cut) and the project's conversation so far.
   async askClaude({ root, cwd, address, branch, question }) {
     const output = address ? await this.readOutput(address) : "";
-    const prompt = promptFor({ question, cwd, branch, output });
+    const prompt = promptFor({ question, cwd, branch, output, terminals: terminalsBlock(spaceTerminals(address)) });
     const bin = await this.claudeBin();
     if (!bin) return { error: MISSING_CLAUDE };
     try {
@@ -1110,7 +1126,56 @@ export default class Parrot extends View {
       .when(Boolean(label), (el) => el.child(this.answerLabel(t, id, label, what)))
       .children(segments(text).map((piece, n) => (piece.type === "code"
         ? this.codeBlock(t, piece, `${id}-${n}`)
-        : div().w_full().text_size(13).child(TextView.markdown(`${id}-${n}`, piece.text).selectable(true))))));
+        : div().w_full().text_size(13).child(TextView.markdown(`${id}-${n}`, linkify(piece.text, { terminals: this.terminalNames() }))
+          .selectable(true).on_link_click((url, cx) => this.followLink(url, cx)))))));
+  }
+
+  // The terminals a link may point at, by address: "pnpm dev in api".
+  terminalNames() {
+    return Object.fromEntries(spaceTerminals(null).map((one) => [one.address, `${one.running} in ${one.folder}`]));
+  }
+
+  // A link in an answer: a file opens in your editor at its line, a terminal's pane gets the focus,
+  // a web page opens in your browser. Nothing else is followed.
+  followLink(url, cx) {
+    const target = linkTarget(url);
+    if (!target) return;
+    if (target.kind === "web") cx.open_url(target.value);
+    else if (target.kind === "terminal") run("pane.focus", { terminal: target.value });
+    else this.openFile(target.value, cx);
+  }
+
+  // A file from the terminal's folder or the project's root, in Cursor or VS Code at its line, else
+  // in its own app. One that is not there says so.
+  openFile(ref, cx) {
+    const { cwd, root } = this.place();
+    const { path, line, column } = fileTarget(ref);
+    cx.spawn(async () => {
+      const file = await this.firstThere(filePlaces(path, { cwd, root, home: home() }));
+      if (!file) {
+        notify({ title: `Parrot cannot find ${path}`, body: "It is not in this terminal's folder or the project's root.", level: "info" });
+        return;
+      }
+      const at = `${file}:${line ?? 1}:${column ?? 1}`;
+      for (const editor of this.editor ? [this.editor] : editorCandidates(home())) {
+        // An editor that is not installed cannot start; the next one is tried.
+        const opened = await exec(editor.bin, ["-g", at], { timeout: 15000 }).catch(() => null);
+        if (opened?.code === 0) {
+          this.editor = editor;
+          return;
+        }
+      }
+      const opened = await exec("open", [file]).catch((error) => ({ code: 1, stderr: String(error?.message ?? error) }));
+      if (opened.code !== 0) notify({ title: `Parrot could not open ${path}`, body: tail(opened.stderr, 1), level: "warning" });
+    });
+  }
+
+  async firstThere(places) {
+    for (const place of places) {
+      const there = await exec("test", ["-e", place]).catch(() => null);
+      if (there?.code === 0) return place;
+    }
+    return null;
   }
 
   // Checked, with what your Claude ran or read to be sure, or Hunch, when it went by the text alone.
