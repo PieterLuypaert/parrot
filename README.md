@@ -49,6 +49,7 @@ The first time you turn the parrot on, it says hello. A terminal that has not lo
 - **Parrot** in the tab bar, or `⌥⌘P`: turn it on or off. It needs a terminal in the tab and sits in the top right corner.
 - A click on the parrot, or `⌥⇧⌘P`: chat about the terminal's project. There is one conversation per git project.
 - **↵** under a command: put it on your prompt, not yet run. A red link marks a command that deletes, overwrites, force-pushes or publishes.
+- **▶ Run** under a command, or **▶ Run all** under several: run it in the terminal now. A red one waits three seconds, and a click or Esc stops it.
 - **Clear chat**, or `/clear`: start the project's conversation over.
 
 ## What goes to Claude
