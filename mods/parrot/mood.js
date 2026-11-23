@@ -23,6 +23,15 @@ export function shellOf(terminal) {
   return SHELLS.includes(exe) ? exe : null;
 }
 
+// The terminal parrot watches, as you would point at it: "the zsh in shop-api".
+export function terminalLabel(terminal, panes, home = null) {
+  if (!terminal) return null;
+  const cwd = panes.find((pane) => pane.terminal === terminal.address)?.cwd ?? terminal.cwd ?? "";
+  const folder = cwd === home ? "~" : String(cwd).split("/").filter(Boolean).pop();
+  const shell = shellOf(terminal) ?? "shell";
+  return folder ? `the ${shell} in ${folder}` : `the ${shell}`;
+}
+
 export function isAgent(focus, terminal) {
   return Boolean(focus?.agent || terminal?.program?.agent || terminal?.status);
 }

@@ -106,10 +106,33 @@ export function headline(alert) {
   return alert.kind === "not-found" ? `zsh: command not found: ${word}` : `${alert.cmd.trim()} failed with exit code ${alert.code}`;
 }
 
-// The question "Ask Parrot" puts to Claude about the alert.
-export function questionFor(alert) {
-  if (alert.kind === "not-found") {
-    return `I typed \`${alert.cmd.trim()}\` and zsh says it cannot find that command. What did I mean, or how do I get it?`;
-  }
-  return `\`${alert.cmd.trim()}\` failed with exit code ${alert.code}. Why, and how do I fix it? Its output is in the terminal.`;
+// The question "Ask Parrot" puts to Claude about the alert, in the language you chat in, so the
+// answer comes in it too.
+const QUESTIONS = {
+  en: {
+    notFound: (cmd) => `I typed ${cmd} and zsh says it cannot find that command. What did I mean, or how do I get it?`,
+    failed: (cmd, code) => `${cmd} failed with exit code ${code}. Why, and how do I fix it? Its output is in the terminal.`,
+  },
+  nl: {
+    notFound: (cmd) => `Ik typte ${cmd} en zsh vindt dat commando niet. Wat bedoelde ik, of hoe krijg ik het?`,
+    failed: (cmd, code) => `${cmd} faalde met exitcode ${code}. Waarom, en hoe los ik het op? De output staat in de terminal.`,
+  },
+  fr: {
+    notFound: (cmd) => `J'ai tapé ${cmd} et zsh ne trouve pas cette commande. Qu'est-ce que je voulais dire, ou comment l'obtenir ?`,
+    failed: (cmd, code) => `${cmd} a échoué avec le code de sortie ${code}. Pourquoi, et comment le corriger ? Sa sortie est dans le terminal.`,
+  },
+  de: {
+    notFound: (cmd) => `Ich habe ${cmd} eingegeben und zsh findet diesen Befehl nicht. Was meinte ich, oder wie bekomme ich ihn?`,
+    failed: (cmd, code) => `${cmd} ist mit Exit-Code ${code} fehlgeschlagen. Warum, und wie behebe ich das? Die Ausgabe steht im Terminal.`,
+  },
+  es: {
+    notFound: (cmd) => `Escribí ${cmd} y zsh no encuentra ese comando. ¿Qué quise decir, o cómo lo consigo?`,
+    failed: (cmd, code) => `${cmd} falló con el código de salida ${code}. ¿Por qué, y cómo lo arreglo? Su salida está en la terminal.`,
+  },
+};
+
+export function questionFor(alert, language = "en") {
+  const ask = QUESTIONS[language] ?? QUESTIONS.en;
+  const cmd = `\`${alert.cmd.trim()}\``;
+  return alert.kind === "not-found" ? ask.notFound(cmd) : ask.failed(cmd, alert.code);
 }

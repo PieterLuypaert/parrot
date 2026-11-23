@@ -21,7 +21,7 @@ Click the parrot to ask about the project in your terminal, or click **Ask Parro
   <img alt="The terminal after the typo pnmp lnit, and the startled parrot with an alert: your Claude thinks you meant pnpm lint" src="docs/screenshots/typo-light.png">
 </picture>
 
-Mistype a command and the parrot startles. Your Claude guesses what you meant, written out in full and never as an alias. Click the guess to put it on your prompt.
+Mistype a command and the parrot startles. Your Claude guesses what you meant, written out in full and never as an alias. **↵ Put on prompt** under the guess puts it on your prompt, as in the chat.
 
 ## Moods
 

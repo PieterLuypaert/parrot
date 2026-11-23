@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shellOf, shows, watched, zoomOf } from "../mods/parrot/mood.js";
+import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shellOf, shows, terminalLabel, watched, zoomOf } from "../mods/parrot/mood.js";
 
 const zsh = { key: "shell", name: "zsh", shell: true, agent: false };
 const node = { key: "program", name: "node", shell: false, agent: false };
@@ -23,6 +23,19 @@ describe("isShell", () => {
 
   test("is false for a program started on its own", () => {
     expect(isShell(editor)).toBe(false);
+  });
+});
+
+describe("terminalLabel", () => {
+  test("names the shell and the folder it is in now", () => {
+    const panes = [{ terminal: "t1", cwd: "/code/shop-api/src" }];
+    expect(terminalLabel({ ...shell, cwd: "/code" }, panes)).toBe("the zsh in src");
+  });
+
+  test("says ~ for your home, and leaves out a folder it does not know", () => {
+    expect(terminalLabel(shell, [{ terminal: "t1", cwd: "/home/me" }], "/home/me")).toBe("the zsh in ~");
+    expect(terminalLabel({ argv: ["/bin/bash"], address: "t9" }, [])).toBe("the bash");
+    expect(terminalLabel(null, [])).toBeNull();
   });
 });
 
