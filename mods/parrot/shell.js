@@ -89,6 +89,13 @@ const RISKY = [
   /\bmigrate\s+reset\b/, /\bdb:(drop|reset|wipe)\b/, /--force-reset\b/,
   // Processes, publishing and root.
   /\b(kill|pkill|killall)\b/, /\b(npm|pnpm|yarn)\s+publish\b/, /\bsudo\b/,
+  /\b(cargo\s+publish|gem\s+push|twine\s+upload)\b/, /\bdocker\s+(compose\s+)?push\b/,
+  // Changing things on GitHub: anything gh does beyond looking.
+  /\bgh\s+\S+\s+(create|delete|merge|close|reopen|edit|rename|archive|fork|review|comment|ready|transfer|upload|run|rerun|cancel|set|lock|unlock|sync)\b/,
+  /\bgh\s+api\b.*(-X|--method)\s*=?\s*(POST|PUT|PATCH|DELETE)\b/i,
+  // Infrastructure and deploys.
+  /\b(kubectl|terraform|tofu|pulumi)\s+(apply|up|replace|scale|rollout|destroy)\b/,
+  /\b(fly|flyctl|firebase|netlify|vercel|serverless|sls|cdk|railway|wrangler|heroku)\b.*(\bdeploy\b|\bpublish\b|--prod\b)/,
   // A script from the internet, run at once.
   /\b(curl|wget)\b[^|]*\|\s*(sudo\s+)?(sh|bash|zsh|python3?|node|perl|ruby)\b/, /\$\(\s*(curl|wget)\b/, /<\(\s*(curl|wget)\b/,
 ];

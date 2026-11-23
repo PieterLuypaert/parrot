@@ -47,8 +47,18 @@ describe("isRisky", () => {
 
   test("leaves everyday commands unmarked", () => {
     for (const cmd of ["ls -la", "git status", "pnpm test", "docker compose up -d", "echo hi >> log.txt", "grep x a 2>&1", "ls x 2>/dev/null",
-      "git checkout main", "git restore --staged a.ts", "npm run format"]) {
-      expect(isRisky(cmd)).toBe(false);
+      "git checkout main", "git restore --staged a.ts", "npm run format", "gh pr view 12", "gh pr checks", "gh pr list", "gh repo view",
+      "gh run view 123 --log-failed", "gh api repos/a/b", "kubectl get pods", "terraform plan", "vercel ls"]) {
+      expect([cmd, isRisky(cmd)]).toEqual([cmd, false]);
+    }
+  });
+
+  test("marks what changes things outside your machine: GitHub, deploys, infrastructure, packages", () => {
+    for (const cmd of ["gh repo create shop --source=. --push", "gh pr merge 12 --merge", "gh pr create --fill", "gh issue close 3",
+      "gh release create v1", "gh api -X DELETE repos/a/b", "gh api --method=POST repos/a/b/issues", "gh workflow run ci.yml",
+      "gh secret set TOKEN", "kubectl apply -f k8s/", "terraform apply", "fly deploy", "firebase deploy", "vercel --prod",
+      "npx wrangler deploy", "docker push app:latest", "docker compose push", "cargo publish"]) {
+      expect([cmd, isRisky(cmd)]).toEqual([cmd, true]);
     }
   });
 });
