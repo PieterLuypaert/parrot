@@ -54,9 +54,9 @@ The first time you turn the parrot on, it says hello. A terminal that has not lo
 
 ## What goes to Claude
 
-Everything runs on your own Claude subscription through `claude -p`. Claude can only read (Read, Grep, Glob): it runs no commands, changes nothing and uses no MCP servers, hooks or plugins.
+Everything runs on your own Claude subscription through `claude -p`. Claude can only read: the project's files, and a fixed list of checks that only read, such as `git status`, `git remote -v` and `docker compose ps`. Claude Code refuses any other command. It changes nothing and uses no MCP servers, hooks or plugins.
 
-- **A question** takes along the terminal's folder, its branch and its last 60 lines. Claude picks and reads the project's files itself.
+- **A question** takes along the terminal's folder, its branch and its last 60 lines. Claude picks what to read and check itself, and each answer says **✓ Checked** with what it looked at, or **~ Hunch**.
 - **A typo** is the only thing sent without a click. Haiku gets the line, its output, the project's scripts and your recent commands, and suggests a fix.
 
 Keys, tokens and passwords are masked before anything is sent. Your `CLAUDE.md` files and auto-memory load as they do in Claude Code.
