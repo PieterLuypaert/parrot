@@ -511,8 +511,10 @@ export default class Parrot extends View {
     });
   }
 
+  // A note waiting for another terminal makes way; hello, or one for this terminal, does not.
   noteOnce(terminal, note) {
-    if (this.noted.has(terminal.pid) || shared(NOTE)) return;
+    const waiting = shared(NOTE);
+    if (this.noted.has(terminal.pid) || (waiting && (!waiting.terminal || waiting.terminal === terminal.address))) return;
     this.noted.add(terminal.pid);
     setShared(NOTE, { id: messageId(), terminal: terminal.address, ...note });
   }
