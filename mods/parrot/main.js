@@ -13,7 +13,8 @@
 // - {perch: true, token}: the parrot itself, in a frameless window the button opens. A parrot whose
 //   token is not the latest closes itself, so there is never more than one.
 // - {chat: true}: the chat beside it, which a click on the parrot or ⌥⇧⌘P (parrot.chat) opens.
-//   parrot.explain asks about the current alert there, as its Ask Parrot button does.
+//   parrot.explain and parrot.fix ask about the current alert there, as its Explain and Fix it
+//   buttons do.
 // parrot.forget clears everything parrot keeps in the app; uninstall.sh sends it.
 // `herdr-app do parrot.calm | parrot.watch | parrot.sleep | parrot.think` shows a mood for ten seconds.
 
@@ -230,11 +231,12 @@ async function projectRoot(cwd) {
   }
 }
 
-// "Ask Parrot" on an alert: the chat opens and the question goes to Claude with the terminal's
-// output, as if you had typed it. The click only hands the alert to the button, which is always
-// there: the alert's own window closes with the click, and Herdr cancels a closed window's work.
-function askAbout(alert) {
-  setShared(PLEA, { id: messageId(), alert });
+// Explain or Fix it on an alert: the chat opens and the question goes to Claude with the terminal's
+// output, as if you had typed it: why it failed, or only the commands that fix it. The click only
+// hands the alert to the button, which is always there: the alert's own window closes with the
+// click, and Herdr cancels a closed window's work.
+function askAbout(alert, intent = "explain") {
+  setShared(PLEA, { id: messageId(), alert, intent });
   setShared(ALERT, null);
   if (!shared(CHAT)) openChat(shared(CORNER) ?? { x: CHAT_W, y: 80 });
 }
@@ -274,10 +276,10 @@ export default class Parrot extends View {
           // cx first: after a reload, the old build's loop ends here instead of opening it twice.
           cx.notify();
           this.toggleChat();
-        } else if (command === "explain") {
+        } else if (command === "explain" || command === "fix") {
           cx.notify();
           const alert = openAlertNow();
-          if (alert) askAbout(alert);
+          if (alert) askAbout(alert, command);
         } else if (MOODS.includes(command)) {
           this.showFor(command, cx);
         }
@@ -441,7 +443,7 @@ export default class Parrot extends View {
     if (what === "dance" || what === "clear") setShared(ALERT, null);
     if (what !== "alarm") return;
     // A mistyped or misused command: your Claude says what you meant, and only your Claude. Any
-    // other failure gets no suggestions, only Ask Parrot why.
+    // other failure gets no suggestions, only the question: explain it, or fix it.
     const output = await this.readOutput(terminal.address);
     const asking = wantsClaude(event, output);
     setShared(ALERT, { ...alertFor(event, { terminal: terminal.address, id: messageId(), output }), asking, askedAt: asking ? Date.now() : null });
@@ -609,7 +611,7 @@ export default class Parrot extends View {
     const plea = shared(PLEA);
     if (!plea || plea.id === this.lastPlea) return;
     this.lastPlea = plea.id;
-    const { alert } = plea;
+    const { alert, intent } = plea;
     cx.spawn(async (cx) => {
       const root = await projectRoot(alert.cwd);
       if (busy()[root]) {
@@ -618,7 +620,7 @@ export default class Parrot extends View {
       }
       // Asked in the language you chat in, so the answer comes in it too; it is parrot's question, not
       // yours, so it never sets that language.
-      const question = questionFor(alert, chatLanguage(chats()));
+      const question = questionFor(alert, chatLanguage(chats()), intent ?? "explain");
       const branch = panes().find((pane) => pane.terminal === alert.terminal)?.branch ?? null;
       setShared(CHATS, withMessage(chats(), root, { role: "you", text: question, id: messageId(), auto: true }));
       setShared(BUSY, { ...busy(), [root]: Date.now() });
@@ -893,9 +895,10 @@ export default class Parrot extends View {
   }
 
   // The one button a bubble has: what to do next.
-  actionButton(id, label, tip, action) {
-    return h_flex().child(div().id(id).h(30).px(12).flex().items_center().text_size(12.5).font_bold()
-      .bg(RED).text_color(WHITE).border_b_2().border_color(RED_DARK).cursor_pointer().hover((s) => s.opacity(0.9))
+  // A second one beside it is outlined, so the first stays the one to press.
+  actionButton(id, label, tip, action, primary = true) {
+    const button = div().id(id).h(30).px(12).flex().items_center().text_size(12.5).font_bold().cursor_pointer().hover((s) => s.opacity(0.85));
+    return h_flex().child((primary ? button.bg(RED).text_color(WHITE).border_b_2().border_color(RED_DARK) : button.border_2().border_color(RED).text_color(RED))
       .when(Boolean(tip), (el) => el.tooltip(tip))
       .on_click((_e, cx) => { action(); cx.notify(); })
       .child(label));
@@ -913,7 +916,7 @@ export default class Parrot extends View {
   }
 
   // The error in a line, the commands your Claude thinks you meant as code with a link to put each
-  // on the prompt, as in its chat answers, and Ask Parrot.
+  // on the prompt, as in its chat answers, and the question what to do: explain it, or fix it.
   alertBubble(t, alert, where) {
     const guesses = alert.suggestions ?? [];
     return this.bubble(t)
@@ -934,7 +937,10 @@ export default class Parrot extends View {
       })))
       .when(guesses.length === 0 && alert.answered && !alert.claudeError,
         (el) => el.child(div().text_size(12.5).text_color(t.muted).child("Your Claude has no good guess for this one.")))
-      .child(this.actionButton(`parrot-alert-ask-${where}`, "Ask Parrot", "Ask your Claude about it in the chat, with the terminal's output", () => askAbout(alert)));
+      .when(guesses.length === 0 && !alert.asking, (el) => el.child(div().text_size(13).child("Shall I explain it, or fix it?")))
+      .child(h_flex().gap(8)
+        .child(this.actionButton(`parrot-alert-fix-${where}`, "Fix it", "Your Claude gives the commands that fix it, in the chat, ready to run", () => askAbout(alert, "fix")))
+        .child(this.actionButton(`parrot-alert-explain-${where}`, "Explain", "Your Claude says why it failed, in the chat", () => askAbout(alert, "explain"), false)));
   }
 
   // ---- The chat ----
