@@ -4,6 +4,14 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-23
+
+The parrot keeps to its corner at any zoom.
+
+### Fixed
+
+- With Herdr zoomed in, the parrot stays in the top right corner of the panes, and its chat and alert open beside it. Before, it landed too far right, and at 2x its bubble ran off the window over the tab bar.
+
 ## [0.5.0] - 2026-11-23
 
 A clear first run, and a clean way out.
