@@ -4,6 +4,16 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-23
+
+Links that take you there.
+
+### Added
+
+- A file your Claude names in an answer, such as `src/orders.ts:42`, is a link: it opens in Cursor at that line, else in VS Code, else in the file's own app. One that is not in the terminal's folder or the project's root says so.
+- With a question your Claude gets the terminals open in that space, with their folder and what runs in them, masked. When it points to one, the link takes you to that pane.
+- A bare web address in an answer is a link to your browser.
+
 ## [0.8.0] - 2026-11-23
 
 Checked, or a hunch.
