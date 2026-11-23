@@ -4,6 +4,21 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-23
+
+One look and one language.
+
+### Added
+
+- Parrot asks its own questions, such as the one behind **Ask Parrot**, in the language you chat in: English, Dutch, French, German or Spanish, told by the last question you typed yourself. The answer comes in it too, and Haiku writes the reason for each guess in it.
+- While your Claude works, a line says so with the seconds it has taken, in the chat and beside the parrot.
+- The tooltips and the chat's header name the terminal the parrot watches, such as the zsh in shop-api.
+
+### Changed
+
+- Alerts and notes are the parrot's speech bubbles, square with a 2px border as its chat answers are, beside it and in the chat. Your Claude's guesses are code with the same **↵ Put on prompt** link as in the chat, with the reason beside it.
+- The same words everywhere: **Ask Parrot** on every alert, **Ask** in the chat, and × to close.
+
 ## [0.5.1] - 2026-11-23
 
 The parrot keeps to its corner at any zoom.
