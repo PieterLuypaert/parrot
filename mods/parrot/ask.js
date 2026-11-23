@@ -25,6 +25,8 @@ export const SYSTEM = [
   `To check something you may run these commands with Bash, exactly as written: ${CHECKS.join(", ")}; and docker compose logs --tail <lines> [service], or lsof -i :<port>. Never with -f or --follow. Anything else is refused.`,
   "You can only read: never say you changed anything. When something needs doing, give the command in a code block.",
   "Start every answer with one line on its own: 'Checked: ' and only the commands you ran or the files you read this time that settle it, comma separated; or just 'Hunch' when you ran and read nothing, also when you answer from what you know. Write those two words in English.",
+  "Name files in code with their path from the folder, and a line when it matters, such as `src/orders.ts:42`: the person can click them.",
+  "The terminals open beside this one come with the question; when you point the person to one, write terminal: and its address, such as terminal:t7.",
   "Keep answers short and concrete, in the language of the question.",
   "The person's recent terminal output comes with each question; it may have nothing to do with it.",
 ].join(" ");
@@ -44,9 +46,11 @@ export function claudeArgs({ prompt, session, model = MODEL }) {
   return args;
 }
 
-export function promptFor({ question, cwd, branch, output }) {
+// The terminal's folder, branch and output, the other terminals in the space when there are any,
+// then the question.
+export function promptFor({ question, cwd, branch, output, terminals = "" }) {
   const where = `folder="${attribute(cwd)}"${branch ? ` branch="${attribute(branch)}"` : ""}`;
-  return [`<terminal ${where}>`, output || "(no output)", "</terminal>", "", question].join("\n");
+  return [`<terminal ${where}>`, output || "(no output)", "</terminal>", ...(terminals ? [terminals] : []), "", question].join("\n");
 }
 
 // The last `n` lines, without the empty ones a terminal leaves under its prompt.

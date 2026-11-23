@@ -83,6 +83,11 @@ describe("promptFor", () => {
   test("says so when there is no output", () => {
     expect(promptFor({ question: "q", cwd: "/x" })).toContain("(no output)");
   });
+
+  test("lists the other terminals in the space between the output and the question", () => {
+    const prompt = promptFor({ question: "Where does the api run?", cwd: "/x", output: "$ ls", terminals: "<terminals>\nt9: pnpm dev in api\n</terminals>" });
+    expect(prompt).toBe('<terminal folder="/x">\n$ ls\n</terminal>\n<terminals>\nt9: pnpm dev in api\n</terminals>\n\nWhere does the api run?');
+  });
 });
 
 describe("tail", () => {
