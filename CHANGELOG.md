@@ -4,6 +4,14 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-11-23
+
+The parrot stays on your screen.
+
+### Fixed
+
+- After Herdr moved from a wide screen to a smaller one, the parrot stayed where the wide screen's corner was, off the screen. It now measures the window again when it comes out, when Herdr goes fullscreen or back or is maximized, and when Herdr becomes the active window again while the parrot is out.
+
 ## [0.10.1] - 2026-11-23
 
 Nothing beyond your machine on one click.
