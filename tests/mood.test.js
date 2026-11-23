@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shellOf, shows, terminalLabel, watched, zoomOf } from "../mods/parrot/mood.js";
+import { MARGIN, SLEEP_AFTER, activity, atPrompt, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shellOf, shows, terminalLabel, watched, zoomOf } from "../mods/parrot/mood.js";
 
 const zsh = { key: "shell", name: "zsh", shell: true, agent: false };
 const node = { key: "program", name: "node", shell: false, agent: false };
@@ -23,6 +23,17 @@ describe("isShell", () => {
 
   test("is false for a program started on its own", () => {
     expect(isShell(editor)).toBe(false);
+  });
+});
+
+describe("atPrompt", () => {
+  test("is at the prompt only while the shell itself is in front", () => {
+    expect(atPrompt(shell)).toBe(true);
+    expect(atPrompt(busy)).toBe(false);
+    expect(atPrompt(session)).toBe(false);
+    expect(atPrompt({ pid: 5, foreground: { pid: 5 } })).toBe(true);
+    expect(atPrompt({ pid: 5, foreground: { pid: 9 } })).toBe(false);
+    expect(atPrompt(null)).toBe(false);
   });
 });
 
