@@ -14,7 +14,7 @@
   <img alt="A failed git push in the terminal, and Parrot's chat beside it: the question why it failed, and an answer with the fix, with a link under each command to put it on the prompt" src="docs/screenshots/chat-light.png">
 </picture>
 
-Click the parrot to ask about the project in your terminal, or click **Ask Parrot** when a command fails. Your Claude reads the files it needs and answers beside the parrot. A click on a green **↵** link puts that command on your prompt, ready for Enter.
+Click the parrot to ask about the project in your terminal. When a command fails, the parrot asks you: **Explain**, or **Fix it**. Your Claude reads the files it needs and answers beside the parrot. A click on a green **↵** link puts that command on your prompt, ready for Enter.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/typo-dark.png">
