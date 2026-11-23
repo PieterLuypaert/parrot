@@ -11,17 +11,17 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/chat-dark.png">
-  <img alt="A failed git push in the terminal, and Parrot's chat beside it: the question why it failed, and an answer with the fix, with a link under each command to put it on the prompt" src="docs/screenshots/chat-light.png">
+  <img alt="A failed git switch in the terminal, and Parrot's chat beside it: Fix it asked for the commands, and the answer, checked with git remote -v and git branch --show-current, gives git switch -c feature/discounts with Put on prompt and Run under it" src="docs/screenshots/chat-light.png">
 </picture>
 
-Click the parrot to ask about the project in your terminal. When a command fails, the parrot asks you: **Explain**, or **Fix it**. Your Claude reads the files it needs and answers beside the parrot. A click on a green **↵** link puts that command on your prompt, ready for Enter.
+Click the parrot to ask about the project in your terminal. When a command fails, the parrot asks you: **Explain**, or **Fix it**. Your Claude checks what it needs and answers beside the parrot, saying whether it **✓ Checked** or has a hunch. Under each command, **↵ Put on prompt** puts it on your prompt and **▶ Run** runs it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/typo-dark.png">
-  <img alt="The terminal after the typo pnmp lnit, and the startled parrot with an alert: your Claude thinks you meant pnpm lint" src="docs/screenshots/typo-light.png">
+  <img alt="The terminal after the typo pnmp lnit, and the startled parrot with an alert: your Claude thinks you meant pnpm lint, with Put on prompt and Run under it, and the buttons Fix it and Explain" src="docs/screenshots/typo-light.png">
 </picture>
 
-Mistype a command and the parrot startles. Your Claude guesses what you meant, written out in full and never as an alias. **↵ Put on prompt** under the guess puts it on your prompt, as in the chat.
+Mistype a command and the parrot startles. Your Claude guesses what you meant, written out in full and never as an alias, with **↵ Put on prompt** and **▶ Run** under it, as in the chat.
 
 ## Moods
 
