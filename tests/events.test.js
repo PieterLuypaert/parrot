@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { afterLine, alertFor, headline, isOwn, isPredicate, notFound, parseEvent, questionFor, reaction, wantsClaude } from "../mods/parrot/events.js";
+import { KEEP_RUNS, afterLine, alertFor, headline, isOwn, isPredicate, notFound, parseEvent, questionFor, reaction, runOutcome, wantsClaude, withRun } from "../mods/parrot/events.js";
 
 describe("afterLine", () => {
   test("is the output after the last time the line was typed, however it was spaced", () => {
@@ -112,5 +112,39 @@ describe("the alert", () => {
   test("keeps the terminal, the suggestions and what kind of error it is", () => {
     const alert = alertFor(event(127, "gti"), { terminal: "t1", id: "a", suggestions: [{ command: "git", why: "x" }] });
     expect(alert).toMatchObject({ terminal: "t1", kind: "not-found", suggestions: [{ command: "git" }] });
+  });
+});
+
+describe("runOutcome", () => {
+  const run = { pid: 42, line: "pnpm install && pnpm test", sentAt: 1000_000, state: "sent" };
+  const report = (code, cmd = run.line, at = 1001, pid = 42) => ({ pid, code, cmd, at, cwd: "/code" });
+
+  test("reads how the line parrot ran ended", () => {
+    expect(runOutcome(run, report(0))).toEqual({ state: "done", code: 0 });
+    expect(runOutcome(run, report(1))).toEqual({ state: "failed", code: 1 });
+    expect(runOutcome(run, report(130))).toEqual({ state: "stopped", code: 130 });
+  });
+
+  test("ignores another line, another terminal, an older report, or a run that ended", () => {
+    expect(runOutcome(run, report(0, "ls"))).toBeNull();
+    expect(runOutcome(run, report(0, run.line, 1001, 7))).toBeNull();
+    expect(runOutcome(run, report(0, run.line, 900))).toBeNull();
+    expect(runOutcome({ ...run, state: "done" }, report(1))).toBeNull();
+  });
+});
+
+describe("withRun", () => {
+  test("keeps a run by the block it came from, replacing an earlier run of that block", () => {
+    const first = withRun({}, { key: "a", sentAt: 1, state: "done" });
+    const again = withRun(first, { key: "a", sentAt: 2, state: "sent" });
+    expect(Object.keys(again)).toEqual(["a"]);
+    expect(again.a.state).toBe("sent");
+  });
+
+  test("keeps only the last runs", () => {
+    let runs = {};
+    for (let i = 0; i < KEEP_RUNS + 5; i++) runs = withRun(runs, { key: `k${i}`, sentAt: i, state: "done" });
+    expect(Object.keys(runs)).toHaveLength(KEEP_RUNS);
+    expect(runs.k0).toBeUndefined();
   });
 });

@@ -87,6 +87,23 @@ export function wantsClaude(event, output) {
   return USAGE.test(afterLine(output, event.cmd));
 }
 
+// How a command parrot ran ended, from the hook's report of that same line in that terminal: "done",
+// "failed" with its exit code, or "stopped" (Ctrl-C and the like). Null for any other report.
+export function runOutcome(run, event) {
+  if (!run || run.state !== "sent" || !event || event.pid !== run.pid) return null;
+  if (event.at * 1000 < run.sentAt - 1000 || event.cmd.trim() !== run.line.trim()) return null;
+  if (event.code === 0) return { state: "done", code: 0 };
+  return { state: QUIET.includes(event.code) ? "stopped" : "failed", code: event.code };
+}
+
+// The commands parrot ran, by the code block they came from: the last 20.
+export const KEEP_RUNS = 20;
+export function withRun(runs, run) {
+  const all = { ...(runs ?? {}), [run.key]: run };
+  const recent = Object.values(all).sort((a, b) => b.sentAt - a.sentAt).slice(0, KEEP_RUNS);
+  return Object.fromEntries(recent.map((one) => [one.key, one]));
+}
+
 export function alertFor(event, { terminal, suggestions = [], id, output }) {
   return {
     id,

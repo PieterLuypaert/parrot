@@ -28,9 +28,9 @@ import {
   MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, chatLanguage, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
 } from "./ask.js";
-import { alertFor, headline, parseEvent, questionFor, reaction, wantsClaude } from "./events.js";
+import { alertFor, headline, parseEvent, questionFor, reaction, runOutcome, wantsClaude, withRun } from "./events.js";
 import { HOOK_GRACE, hookPath, noteFor } from "./notes.js";
-import { isRisky, scriptsFrom, segments, shellQuote } from "./shell.js";
+import { hasPlaceholder, isRisky, runLine, scriptsFrom, segments, shellQuote } from "./shell.js";
 
 const FRAMES = "mods/parrot/frames/";
 const SIZE = 96;
@@ -57,7 +57,11 @@ const DANCE_AT = "parrot.dance";
 const NOTE = "parrot.note";
 const WELCOMED = "parrot.welcomed";
 // Everything parrot keeps in the app, for parrot.forget; parrot.thinking is from an early build.
-const KEPT = [ON, OPEN, OVERLAY, PERCH, WIDTH, CORNER, CHAT, CHATS, ASK, BUSY, ALERT, PLEA, ALERT_WINDOW, DANCE_AT, NOTE, WELCOMED, "parrot.thinking"];
+const RUNS = "parrot.runs";
+const KEPT = [ON, OPEN, OVERLAY, PERCH, WIDTH, CORNER, CHAT, CHATS, ASK, BUSY, ALERT, PLEA, ALERT_WINDOW, DANCE_AT, NOTE, WELCOMED, RUNS, "parrot.thinking"];
+// How long a command that deletes, overwrites or pushes waits before it runs, so a click or Esc
+// can still stop it.
+const COUNTDOWN = 3000;
 const ALERT_W = 380;
 const SHAKE_FOR = 700;
 const SETTLE = 1500;
@@ -151,6 +155,27 @@ function putOnPrompt(address, command) {
     .catch((error) => notify({ title: "Parrot could not reach the terminal", body: String(error?.message ?? error), level: "error" }));
   run("pane.focus", { terminal: address });
   return "put";
+}
+
+// Runs a command in that terminal as if you typed it and pressed Enter, and focuses its pane:
+// "sent", "busy" (something still runs there) or "gone". Only at the prompt, as with putting it
+// there. How it ended comes from the hook's report of that same line.
+function runInTerminal(address, line, key) {
+  const terminal = terminals().find((one) => one.address === address);
+  if (!terminal) {
+    notify({ title: "That terminal is gone", body: "Parrot cannot run the command there any more.", level: "warning" });
+    return "gone";
+  }
+  if (runsCommand(terminal)) {
+    notify({ title: "Something still runs in that terminal", body: "Parrot runs the command once you are back at the prompt: click again then.", level: "info" });
+    return "busy";
+  }
+  hc(["send", address, line])
+    .then((sent) => { if (sent.code !== 0) throw new Error(tail(sent.stderr, 1) || `hc send ended with ${sent.code}`); })
+    .catch((error) => notify({ title: "Parrot could not reach the terminal", body: String(error?.message ?? error), level: "error" }));
+  setShared(RUNS, withRun(shared(RUNS), { key, address, pid: terminal.pid, line, sentAt: Date.now(), state: "sent" }));
+  run("pane.focus", { terminal: address });
+  return "sent";
 }
 
 // "Load it here" on a terminal opened before the install: the hook is sourced there now, so the
@@ -382,6 +407,7 @@ export default class Parrot extends View {
     const event = parseEvent(await readTextFile(path));
     if (!event || event.at * 1000 < this.since || event.at <= (this.seen[path] ?? 0)) return;
     this.seen[path] = event.at;
+    this.trackRuns(event);
     const terminal = terminals().find((one) => one.pid === event.pid);
     const tab = terminal && panes().find((pane) => pane.terminal === terminal.address)?.tab;
     if (!tab || tab !== focused()?.tab) return;
@@ -399,6 +425,17 @@ export default class Parrot extends View {
     const context = await this.contextOf(event, dir);
     this.askWhatYouMeant(alert, { output, ...context })
       .catch((error) => notify({ title: "Parrot could not ask your Claude", body: String(error?.message ?? error), level: "warning" }));
+  }
+
+  // A command parrot ran has ended: the code block it came from says how, in any tab.
+  trackRuns(event) {
+    const runs = shared(RUNS) ?? {};
+    for (const one of Object.values(runs)) {
+      const outcome = runOutcome(one, event);
+      if (!outcome) continue;
+      setShared(RUNS, { ...runs, [one.key]: { ...one, ...outcome } });
+      return;
+    }
   }
 
   // Your history as the hook wrote it, and the project's scripts.
@@ -797,7 +834,7 @@ export default class Parrot extends View {
   alertWindow(t, cx) {
     const alert = openAlertNow();
     const note = openNoteNow(watched(focused(), panes(), terminals()));
-    this.keepTicking(Boolean(alert?.asking), cx);
+    this.keepTicking(Boolean(alert?.asking) || Boolean(this.countdown), cx);
     if (!alert && !note) return div();
     return h_flex().id("parrot-alert").w_full().items_start().on_mouse_down("left", stop)
       .child(div().relative().flex_1().min_w(0).pr(SHADOW).pb(SHADOW)
@@ -859,8 +896,14 @@ export default class Parrot extends View {
       .when(Boolean(alert.asking), (el) => el.child(this.thinking(t, alert.askedAt)))
       .when(Boolean(alert.claudeError), (el) => el.child(div().text_size(12.5).text_color(t.muted).child(alert.claudeError)))
       .when(guesses.length > 0, (el) => el.child(div().text_size(13).child("Your Claude thinks you meant:")))
-      .children(guesses.map((guess, i) => this.codeBlock(t, { lines: [{ text: guess.command, command: guess.command }] },
-        `parrot-guess-${where}-${i}`, (command) => putCommand(alert, command), guess.why)))
+      .children(guesses.map((guess, i) => this.codeBlock(t, { lines: [{ text: guess.command, command: guess.command }] }, `parrot-guess-${where}-${i}`, {
+        put: (command) => putCommand(alert, command),
+        address: () => alert.terminal,
+        // Like a guess put on the prompt, a guess run waits out of sight, so the parrot dances when it works.
+        afterRun: () => setShared(ALERT, { ...alert, taken: true }),
+        why: guess.why,
+        key: `guess-${alert.id}-${i}`,
+      })))
       .when(guesses.length === 0 && alert.answered && !alert.claudeError,
         (el) => el.child(div().text_size(12.5).text_color(t.muted).child("Your Claude has no good guess for this one.")))
       .child(this.actionButton(`parrot-alert-ask-${where}`, "Ask Parrot", "Ask your Claude about it in the chat, with the terminal's output", () => askAbout(alert)));
@@ -944,14 +987,17 @@ export default class Parrot extends View {
     const alert = openAlertNow();
     const note = openNoteNow(terminal);
     this.followLatest(messages, thinking, alert ?? note, cx);
-    this.keepTicking(thinking || Boolean(alert?.asking), cx);
+    this.keepTicking(thinking || Boolean(alert?.asking) || Boolean(this.countdown), cx);
     const where = root ? [shellOf(terminal), projectName(root), branch].filter(Boolean).join(" · ") : "no terminal in this tab";
     // Every press stops here, so the chat never drags: it stays beside its parrot.
     return h_flex().id("parrot-chat").size_full().items_start().on_mouse_down("left", stop)
       .track_focus(this.handle)
       .on_key_down((e, cx) => {
         if (e.key !== "escape") return;
-        closeOverlay(props()?.overlay);
+        // Esc stops a command that is counting down; otherwise it closes the chat.
+        if (this.countdown) this.countdown = null;
+        else closeOverlay(props()?.overlay);
+        cx.notify();
         cx.stop_propagation();
       })
       .child(div().relative().flex_1().h_full()
@@ -1055,16 +1101,20 @@ export default class Parrot extends View {
 
   // A code block in the terminal's font, and under it a link for each command it holds: one click
   // puts it on the terminal's prompt, not run, with its pane focused. A link for a command that
-  // deletes, overwrites or pushes is red. Other code gets a Copy link. `why`, your Claude's reason
-  // for a guess, follows a single command's link.
-  codeBlock(t, piece, id, put = (command) => this.putFromChat(command), why = null) {
+  // deletes, overwrites or pushes is red. ▶ Run runs the command, or all of the block's in order,
+  // unless one has a part still to fill in. How it ended shows under the block. Other code gets a
+  // Copy link. `why`, your Claude's reason for a guess, follows a single command's links.
+  codeBlock(t, piece, id, { put = (command) => this.putFromChat(command), address = () => this.place().terminal?.address, afterRun = null, why = null, key = id } = {}) {
     const mono = settings()?.font || "Menlo";
     const commands = piece.lines.map((line) => line.command).filter(Boolean);
     const code = piece.lines.map((line) => line.text).join("\n");
-    const link = (key, label, color, tip, action) => div().id(`${id}-${key}`).text_size(12).font_medium().text_color(color).truncate()
+    const link = (name, label, color, tip, action) => div().id(`${id}-${name}`).text_size(12).font_medium().text_color(color).truncate()
       .cursor_pointer().hover((s) => s.opacity(0.75)).tooltip(tip)
       .on_click((_e, cx) => { action(cx); cx.notify(); })
       .child(label);
+    const runnable = commands.length > 0 && !commands.some(hasPlaceholder);
+    const run = runnable ? this.runLink(t, link, key, runLine(commands), commands.some(isRisky), commands.length > 1, address, afterRun) : null;
+    const status = (shared(RUNS) ?? {})[key];
     return v_flex().w_full().gap(4)
       .child(v_flex().w_full().px(10).py(8).bg(t.background).font_family(mono).text_size(12)
         .children(piece.lines.map((line) => div().w_full().text_color(line.command && isRisky(line.command) ? RED : t.foreground).child(line.text || " "))))
@@ -1072,11 +1122,51 @@ export default class Parrot extends View {
       .children(commands.map((command, n) => {
         const risky = isRisky(command);
         const label = `↵ ${commands.length === 1 ? "Put on prompt" : command}${risky ? " · deletes or pushes" : ""}`;
-        const putLink = link(`put-${n}`, label, risky ? RED : GREEN, PUT_TIP, () => put(command));
-        if (commands.length > 1 || !why) return putLink;
-        return h_flex().w_full().gap(6).items_center().child(putLink.flex_none())
-          .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.muted).child(`· ${why}`));
-      }));
+        const tip = hasPlaceholder(command) ? "Put it on the prompt to fill in the part in <>, then press Enter" : PUT_TIP;
+        const putLink = link(`put-${n}`, label, risky ? RED : GREEN, tip, () => put(command));
+        if (commands.length > 1) return putLink;
+        return h_flex().w_full().gap(10).items_center().child(putLink.flex_none())
+          .when(Boolean(run), (el) => el.child(run.flex_none()))
+          .when(Boolean(why), (el) => el.child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.muted).child(`· ${why}`)));
+      }))
+      .when(commands.length > 1 && Boolean(run), (el) => el.child(run))
+      .when(Boolean(status), (el) => el.child(this.runStatus(t, status)));
+  }
+
+  // ▶ Run. One that deletes, overwrites or pushes counts down three seconds first, and a click or
+  // Esc stops it.
+  runLink(t, link, key, line, risky, many, address, afterRun) {
+    if (this.countdown?.key === key) {
+      const left = Math.max(1, Math.ceil((this.countdown.until - Date.now()) / 1000));
+      return link("run", `▶ Runs in ${left} s · Stop`, RED, "Click, or press Esc, to stop it", () => { this.countdown = null; });
+    }
+    const tip = many ? "Run them in the terminal, in order, stopping at the first that fails" : "Run it in the terminal";
+    return link("run", many ? "▶ Run all" : "▶ Run", risky ? RED : GREEN, risky ? `${tip}, after three seconds to change your mind` : tip,
+      (cx) => this.startRun({ key, line, risky, address: address(), afterRun }, cx));
+  }
+
+  startRun({ key, line, risky, address, afterRun }, cx) {
+    if (!address) {
+      notify({ title: "No terminal in this tab", body: "Open a terminal pane here, then click Run again.", level: "info" });
+      return;
+    }
+    const go = () => { if (runInTerminal(address, line, key) === "sent") afterRun?.(); };
+    if (!risky) return go();
+    this.countdown = { key, until: Date.now() + COUNTDOWN };
+    cx.timer.after(COUNTDOWN, (cx) => {
+      if (this.countdown?.key !== key) return;
+      this.countdown = null;
+      go();
+      cx.notify();
+    });
+  }
+
+  // How a command parrot ran is doing, from the hook's report.
+  runStatus(t, one) {
+    const [color, text] = one.state === "done" ? [GREEN, "✓ Done"]
+      : one.state === "failed" ? [RED, `✗ Failed with exit code ${one.code}`]
+        : one.state === "stopped" ? [t.muted, "Stopped"] : [t.muted, "▶ Sent to the terminal"];
+    return div().text_size(12).text_color(color).child(text);
   }
 
   // Into the terminal the chat is about, the one the parrot watches in this tab.

@@ -61,11 +61,23 @@ const RISKY = [
   /\bgit\s+(checkout|restore)\s+(--\s+)?\.(\s|$)/, /\bgit\s+branch\s+-D\b/, /\bdrop\s+(database|table|schema)\b/i,
   /\btruncate\s+table\b/i, /\bdocker\s+(system|volume|image)\s+prune\b/, /\bdocker\s+(volume\s+)?rm\b/,
   /\bkubectl\s+delete\b/, /\bmkfs\b/, /\bdd\s+if=/, /\bchmod\s+-R\s+777\b/, /\bmigrate\s+reset\b/, /\bdb:(drop|reset|wipe)\b/,
-  /\b(npm|pnpm|yarn)\s+publish\b/, /\bsudo\b/, /(^|[^>])>\s*[^>&\s]/,
+  /\b(npm|pnpm|yarn)\s+publish\b/, /\bsudo\b/, /(^|[^>])>\s*[^>&\s]/, /\b(curl|wget)\b[^|]*\|\s*(sudo\s+)?(sh|bash|zsh)\b/,
 ];
 
 export function isRisky(command) {
   return RISKY.some((pattern) => pattern.test(String(command ?? "")));
+}
+
+// A command with a part still to fill in, such as <url> or YOUR_TOKEN: it goes on the prompt for
+// you to finish, and never runs as it is.
+export function hasPlaceholder(command) {
+  return /<[A-Za-z][\w .:/-]*>/.test(String(command ?? "")) || /\bYOUR_[A-Z][A-Z_]*\b/.test(String(command ?? ""));
+}
+
+// A block's commands as the one line Run all sends: the shell runs them in order and stops at the
+// first that fails, and the hook reports how that line ended.
+export function runLine(commands) {
+  return commands.map((command) => command.trim()).filter(Boolean).join(" && ");
 }
 
 // A command as one single-quoted shell word, for print -z.
