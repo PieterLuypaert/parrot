@@ -89,9 +89,11 @@ export function wantsClaude(event, output) {
 
 // How a command parrot ran ended, from the hook's report of that same line in that terminal: "done",
 // "failed" with its exit code, or "stopped" (Ctrl-C and the like). Null for any other report.
+// The line is compared without its extra spaces, which zsh's HIST_REDUCE_BLANKS takes out.
+const squeezed = (text) => String(text ?? "").trim().replace(/\s+/g, " ");
 export function runOutcome(run, event) {
   if (!run || run.state !== "sent" || !event || event.pid !== run.pid) return null;
-  if (event.at * 1000 < run.sentAt - 1000 || event.cmd.trim() !== run.line.trim()) return null;
+  if (event.at * 1000 < run.sentAt - 1000 || squeezed(event.cmd) !== squeezed(run.line)) return null;
   if (event.code === 0) return { state: "done", code: 0 };
   return { state: QUIET.includes(event.code) ? "stopped" : "failed", code: event.code };
 }

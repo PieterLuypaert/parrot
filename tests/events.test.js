@@ -125,6 +125,10 @@ describe("runOutcome", () => {
     expect(runOutcome(run, report(130))).toEqual({ state: "stopped", code: 130 });
   });
 
+  test("matches the line also when zsh took out its extra spaces", () => {
+    expect(runOutcome({ ...run, line: "pnpm  install &&  pnpm test" }, report(0))).toEqual({ state: "done", code: 0 });
+  });
+
   test("ignores another line, another terminal, an older report, or a run that ended", () => {
     expect(runOutcome(run, report(0, "ls"))).toBeNull();
     expect(runOutcome(run, report(0, run.line, 1001, 7))).toBeNull();

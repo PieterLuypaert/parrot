@@ -70,6 +70,14 @@ export function runsCommand(terminal) {
 }
 
 // What counts as something happening: another pane taking the focus, or another program in it.
+// At the prompt: the shell itself is in front, not a command or an agent, so what parrot types
+// there goes to the shell.
+export function atPrompt(terminal) {
+  if (!terminal) return false;
+  if (terminal.program) return Boolean(terminal.program.shell) && !terminal.program.agent;
+  return !runsCommand(terminal);
+}
+
 export function activity(focus, terminal) {
   return [focus?.terminal ?? "", terminal?.program?.key ?? "", terminal?.program?.name ?? "", terminal?.foreground?.pid ?? ""].join("|");
 }
