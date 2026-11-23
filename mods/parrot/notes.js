@@ -36,7 +36,7 @@ export function noteFor(note) {
   if (note.kind === "no-hook" && note.hook) {
     return {
       title: "I can't hear this terminal",
-      lines: ["It was opened before parrot was installed, so I don't see its commands end: no startle and no guesses here yet. New terminals have it."],
+      lines: ["It hasn't loaded parrot's zsh hook, often because it was open before the install, so I don't see its commands end: no startle and no guesses here yet. New terminals have it."],
       action: { kind: "load-hook", label: "Load it here" },
     };
   }
