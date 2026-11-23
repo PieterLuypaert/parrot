@@ -65,6 +65,7 @@ const CALM = { from: 0, to: 2, period: 2800 };
 const SWAY = { calm: CALM, watch: CALM, think: CALM, sleep: { from: 0, to: 3, period: 4200 } };
 const LOST = "The answer was lost when Herdr closed or parrot reloaded. Ask again.";
 const CLEAR_WORDS = ["/clear", "/new", "/reset"];
+const PUT_TIP = "Put it on the terminal's prompt: Enter runs it";
 
 // The parrot's own colours (scripts/sprite.js), so the chat looks like it belongs to the bird.
 const RED = "#e0303f";
@@ -392,7 +393,7 @@ export default class Parrot extends View {
     // other failure gets no suggestions, only Ask Parrot why.
     const output = await this.readOutput(terminal.address);
     const asking = wantsClaude(event, output);
-    setShared(ALERT, { ...alertFor(event, { terminal: terminal.address, id: messageId(), output }), asking });
+    setShared(ALERT, { ...alertFor(event, { terminal: terminal.address, id: messageId(), output }), asking, askedAt: asking ? Date.now() : null });
     if (!asking) return;
     const alert = shared(ALERT);
     const context = await this.contextOf(event, dir);
@@ -558,7 +559,7 @@ export default class Parrot extends View {
       const question = questionFor(alert, chatLanguage(chats()));
       const branch = panes().find((pane) => pane.terminal === alert.terminal)?.branch ?? null;
       setShared(CHATS, withMessage(chats(), root, { role: "you", text: question, id: messageId(), auto: true }));
-      setShared(BUSY, { ...busy(), [root]: true });
+      setShared(BUSY, { ...busy(), [root]: Date.now() });
       setShared(ASK, { id: messageId(), root, cwd: alert.cwd, address: alert.terminal, branch, question });
       cx.notify();
     });
@@ -766,7 +767,7 @@ export default class Parrot extends View {
     const p = props() ?? {};
     if (p.measure) return this.measure();
     if (p.chat) return this.chat(t, cx);
-    if (p.alert) return this.alertWindow(t);
+    if (p.alert) return this.alertWindow(t, cx);
     if (p.button) {
       this.sync(cx);
       return this.button(t);
@@ -774,66 +775,95 @@ export default class Parrot extends View {
     return this.perch(t, cx);
   }
 
-  // ---- What the parrot says about an error ----
+  // ---- What the parrot says ----
 
-  // Beside the parrot, in the chat's pixel look, as big as what it says. It never drags.
-  alertWindow(t) {
+  // One of the parrot's speech bubbles, as its chat answers are: its own soft red, square, with a
+  // 2px border like the chat's frame. Alerts and notes are bubbles too, beside it and in the chat.
+  bubble(t) {
+    const dark = settings()?.dark !== false;
+    return v_flex().relative().flex_1().min_w(0).gap(8).px(12).py(9).bg(dark ? PARROT_BUBBLE_DARK : PARROT_BUBBLE_LIGHT)
+      .border_2().border_color(RED_DARK).text_color(t.foreground);
+  }
+
+  // In the chat, the parrot speaks beside its head.
+  spoken(bubble) {
+    return h_flex().w_full().gap(6).items_start()
+      .child(image(FRAMES + "icon.png").w(16).h(16).flex_none().mt(4))
+      .child(bubble);
+  }
+
+  // Beside the parrot, a bubble of its own with a pixel shadow and its tail at the parrot's head,
+  // as big as what it says. It never drags.
+  alertWindow(t, cx) {
     const alert = openAlertNow();
     const note = openNoteNow(watched(focused(), panes(), terminals()));
+    this.keepTicking(Boolean(alert?.asking), cx);
     if (!alert && !note) return div();
     return h_flex().id("parrot-alert").w_full().items_start().on_mouse_down("left", stop)
       .child(div().relative().flex_1().min_w(0).pr(SHADOW).pb(SHADOW)
         .child(div().absolute().top(SHADOW).left(SHADOW).right(0).bottom(0).bg(PIXEL_SHADOW))
-        .child(v_flex().relative().bg(t.popover).text_color(t.foreground).border_2().border_color(RED_DARK)
-          .child(this.stripe())
-          .child(div().p(12).child(alert ? this.alertCard(t, alert, "window") : this.noteCard(t, note, "window")))))
+        .child(alert ? this.alertBubble(t, alert, "window") : this.noteBubble(t, note, "window")))
       .child(this.tail());
   }
 
-  // Hello, or why the parrot cannot hear a terminal: a few lines and one button.
-  noteCard(t, note, where) {
-    const { title, lines: said, hint, action } = noteFor(note);
-    const act = action.kind === "load-hook" ? () => loadHook(note) : () => setShared(NOTE, null);
-    return v_flex().gap(8)
-      .child(h_flex().gap(8).items_center()
-        .child(image(FRAMES + "icon.png").w(20).h(20).flex_none())
-        .child(div().flex_1().min_w(0).text_size(13).font_bold().child(title))
-        .child(this.chatButton(t, `parrot-note-dismiss-${where}`, "×", "Close", () => setShared(NOTE, null))))
-      .children(said.map((line) => div().text_size(12.5).child(line)))
-      .when(Boolean(hint), (el) => el.child(div().text_size(11.5).text_color(t.dim).child(hint)))
-      .child(h_flex().child(div().id(`parrot-note-act-${where}`).h(30).px(12).flex().items_center().text_size(12.5).font_bold()
-        .bg(RED).text_color(WHITE).border_b_2().border_color(RED_DARK).cursor_pointer().hover((s) => s.opacity(0.9))
-        .on_click((_e, cx) => { act(); cx.notify(); })
-        .child(action.label)));
+  // A clock for "thinking · 12 s": one redraw a second while your Claude works, none otherwise.
+  keepTicking(active, cx) {
+    if (active && !this.ticker && !checking()) this.ticker = cx.timer.every(1000, (cx) => cx.notify());
+    if (!active && this.ticker) {
+      this.ticker.cancel();
+      this.ticker = null;
+    }
   }
 
-  // The error in a line, the commands you probably meant, and Ask Parrot.
-  alertCard(t, alert, where) {
-    const ask = alert.kind === "failed" ? "Ask Parrot why" : "Ask Parrot";
-    return v_flex().gap(8)
-      .child(h_flex().gap(8).items_start()
-        .child(div().px(6).font_bold().bg(RED).text_color(WHITE).child("!"))
-        .child(div().flex_1().min_w(0).text_size(12.5).font_bold().child(headline(alert)))
-        .child(this.chatButton(t, `parrot-alert-dismiss-${where}`, "×", "Dismiss", () => setShared(ALERT, null))))
-      .when(Boolean(alert.asking), (el) => el.child(h_flex().gap(8).items_center().text_size(12).text_color(t.muted)
-        .child(image(FRAMES + "think.png").w(24).h(24))
-        .child(div().child("Asking your Claude what you meant"))
-        .child(div().w(18).frames(["", ".", "..", "..."], 380))))
-      .when(Boolean(alert.claudeError), (el) => el.child(div().text_size(11.5).text_color(t.dim).child(alert.claudeError)))
-      .when(alert.suggestions.length > 0, (el) => el.child(div().text_size(12).text_color(t.muted).child("Your Claude thinks you meant")))
-      .children(alert.suggestions.map((suggestion, i) => v_flex().id(`parrot-suggestion-${where}-${i}`).gap(2).px(10).py(6)
-        .border_2().border_color(t.border).hover((s) => s.border_color(RED)).cursor_pointer()
-        .tooltip("Put it on the prompt: Enter runs it")
-        .on_click((_e, cx) => { putCommand(alert, suggestion.command); cx.notify(); })
-        .child(div().w_full().text_size(13).font_bold().child(suggestion.command))
-        .child(div().w_full().text_size(11).text_color(t.dim).child(suggestion.why))))
-      .child(h_flex().gap(8).items_center()
-        .child(div().id(`parrot-alert-ask-${where}`).h(30).px(12).flex().items_center().text_size(12.5).font_bold()
-          .bg(RED).text_color(WHITE).border_b_2().border_color(RED_DARK).cursor_pointer().hover((s) => s.opacity(0.9))
-          .tooltip("Ask your own Claude, with the terminal's output")
-          .on_click((_e, cx) => { askAbout(alert); cx.notify(); })
-          .child(ask))
-        .when(alert.suggestions.length === 0 && alert.answered && !alert.claudeError, (el) => el.child(div().text_size(11.5).text_color(t.dim).child("Your Claude has no good guess for this one."))));
+  // Your Claude at work, and how long it has been at it.
+  thinking(t, since) {
+    const seconds = typeof since === "number" ? Math.max(0, Math.floor((Date.now() - since) / 1000)) : null;
+    return h_flex().gap(8).items_center().text_size(12.5).text_color(t.muted)
+      .child(image(FRAMES + "think.png").w(28).h(28).flex_none())
+      .child(div().child(`Your Claude is thinking${seconds === null ? "" : ` · ${seconds} s`}`));
+  }
+
+  bubbleTitle(t, title, mark, id, close) {
+    return h_flex().gap(8).items_start()
+      .when(Boolean(mark), (el) => el.child(div().px(6).font_bold().bg(RED).text_color(WHITE).child(mark)))
+      .child(div().flex_1().min_w(0).text_size(13).font_bold().child(title))
+      .child(this.chatButton(t, id, "×", "Close", close));
+  }
+
+  // The one button a bubble has: what to do next.
+  actionButton(id, label, tip, action) {
+    return h_flex().child(div().id(id).h(30).px(12).flex().items_center().text_size(12.5).font_bold()
+      .bg(RED).text_color(WHITE).border_b_2().border_color(RED_DARK).cursor_pointer().hover((s) => s.opacity(0.9))
+      .when(Boolean(tip), (el) => el.tooltip(tip))
+      .on_click((_e, cx) => { action(); cx.notify(); })
+      .child(label));
+  }
+
+  // Hello, or why the parrot cannot hear a terminal: a few lines and one button.
+  noteBubble(t, note, where) {
+    const { title, lines: said, hint, action } = noteFor(note);
+    const act = action.kind === "load-hook" ? () => loadHook(note) : () => setShared(NOTE, null);
+    return this.bubble(t)
+      .child(this.bubbleTitle(t, title, null, `parrot-note-close-${where}`, () => setShared(NOTE, null)))
+      .children(said.map((line) => div().text_size(13).child(line)))
+      .when(Boolean(hint), (el) => el.child(div().text_size(12).text_color(t.muted).child(hint)))
+      .child(this.actionButton(`parrot-note-act-${where}`, action.label, null, act));
+  }
+
+  // The error in a line, the commands your Claude thinks you meant as code with a link to put each
+  // on the prompt, as in its chat answers, and Ask Parrot.
+  alertBubble(t, alert, where) {
+    const guesses = alert.suggestions ?? [];
+    return this.bubble(t)
+      .child(this.bubbleTitle(t, headline(alert), "!", `parrot-alert-close-${where}`, () => setShared(ALERT, null)))
+      .when(Boolean(alert.asking), (el) => el.child(this.thinking(t, alert.askedAt)))
+      .when(Boolean(alert.claudeError), (el) => el.child(div().text_size(12.5).text_color(t.muted).child(alert.claudeError)))
+      .when(guesses.length > 0, (el) => el.child(div().text_size(13).child("Your Claude thinks you meant:")))
+      .children(guesses.map((guess, i) => this.codeBlock(t, { lines: [{ text: guess.command, command: guess.command }] },
+        `parrot-guess-${where}-${i}`, (command) => putCommand(alert, command), guess.why)))
+      .when(guesses.length === 0 && alert.answered && !alert.claudeError,
+        (el) => el.child(div().text_size(12.5).text_color(t.muted).child("Your Claude has no good guess for this one.")))
+      .child(this.actionButton(`parrot-alert-ask-${where}`, "Ask Parrot", "Ask your Claude about it in the chat, with the terminal's output", () => askAbout(alert)));
   }
 
   // ---- The chat ----
@@ -901,7 +931,8 @@ export default class Parrot extends View {
     this.problem = null;
     this.input.set_value("");
     setShared(CHATS, withMessage(chats(), root, { role: "you", text: question, id: messageId() }));
-    setShared(BUSY, { ...busy(), [root]: true });
+    // When it was asked, for the thinking clock.
+    setShared(BUSY, { ...busy(), [root]: Date.now() });
     setShared(ASK, { id: messageId(), root, cwd, address: terminal?.address ?? null, branch, question });
     cx.notify();
   }
@@ -913,6 +944,7 @@ export default class Parrot extends View {
     const alert = openAlertNow();
     const note = openNoteNow(terminal);
     this.followLatest(messages, thinking, alert ?? note, cx);
+    this.keepTicking(thinking || Boolean(alert?.asking), cx);
     const where = root ? [shellOf(terminal), projectName(root), branch].filter(Boolean).join(" · ") : "no terminal in this tab";
     // Every press stops here, so the chat never drags: it stays beside its parrot.
     return h_flex().id("parrot-chat").size_full().items_start().on_mouse_down("left", stop)
@@ -986,12 +1018,9 @@ export default class Parrot extends View {
     return v_flex().id("parrot-chat-list").flex_1().min_h(0).overflow_y_scrollbar().track_scroll(this.scroll).px(12).py(12).gap(12)
       .when(messages.length === 0 && !thinking && !alert && !note, (el) => el.child(this.emptyChat(t, root)))
       .children(messages.map((message, i) => this.message(t, message, i)))
-      .when(thinking, (el) => el.child(h_flex().gap(8).items_center().text_size(12.5).text_color(t.muted)
-        .child(image(FRAMES + "think.png").w(32).h(32))
-        .child(div().child("Parrot is thinking"))
-        .child(div().w(18).frames(["", ".", "..", "..."], 380))))
-      .when(Boolean(alert), (el) => el.child(div().p(10).border_2().border_color(RED_DARK).child(this.alertCard(t, alert, "chat"))))
-      .when(Boolean(note), (el) => el.child(div().p(10).border_2().border_color(RED_DARK).child(this.noteCard(t, note, "chat"))));
+      .when(thinking, (el) => el.child(this.thinking(t, busy()[root])))
+      .when(Boolean(alert), (el) => el.child(this.spoken(this.alertBubble(t, alert, "chat"))))
+      .when(Boolean(note), (el) => el.child(this.spoken(this.noteBubble(t, note, "chat"))));
   }
 
   composer(t, thinking) {
@@ -1001,7 +1030,7 @@ export default class Parrot extends View {
         .child(Input.new(this.input).flex_1().h(34).px(10).border_2().border_color(this.inputFocused ? RED : t.input).bg(t.background).text_size(13).text_color(t.foreground))
         .child(div().id("parrot-chat-ask").h(34).px(14).flex().items_center().text_size(12.5).font_bold()
           .bg(thinking ? t.raised : RED).text_color(thinking ? t.muted : WHITE).border_b_2().border_color(thinking ? t.border : RED_DARK)
-          .cursor_pointer().hover((s) => s.opacity(0.9)).on_click((_e, cx) => this.send(cx)).child("ASK")));
+          .cursor_pointer().hover((s) => s.opacity(0.9)).on_click((_e, cx) => this.send(cx)).child("Ask")));
   }
 
   // Messages as chat bubbles in the parrot's colours, square with a 2px border like the chat's own
@@ -1018,20 +1047,17 @@ export default class Parrot extends View {
         .child(div().px(6).font_bold().bg(RED).text_color(WHITE).child("!"))
         .child(div().flex_1().min_w(0).child(message.text));
     }
-    const dark = settings()?.dark !== false;
-    return h_flex().w_full().gap(6).items_start()
-      .child(image(FRAMES + "icon.png").w(16).h(16).flex_none().mt(4))
-      .child(v_flex().flex_1().min_w(0).gap(8).px(12).py(9)
-        .bg(dark ? PARROT_BUBBLE_DARK : PARROT_BUBBLE_LIGHT).border_2().border_color(RED_DARK)
-        .children(segments(message.text).map((piece, n) => (piece.type === "code"
-          ? this.codeBlock(t, piece, `${id}-${n}`)
-          : div().w_full().text_size(13).child(TextView.markdown(`${id}-${n}`, piece.text).selectable(true))))));
+    return this.spoken(this.bubble(t)
+      .children(segments(message.text).map((piece, n) => (piece.type === "code"
+        ? this.codeBlock(t, piece, `${id}-${n}`)
+        : div().w_full().text_size(13).child(TextView.markdown(`${id}-${n}`, piece.text).selectable(true))))));
   }
 
   // A code block in the terminal's font, and under it a link for each command it holds: one click
   // puts it on the terminal's prompt, not run, with its pane focused. A link for a command that
-  // deletes, overwrites or pushes is red. Other code gets a Copy link.
-  codeBlock(t, piece, id) {
+  // deletes, overwrites or pushes is red. Other code gets a Copy link. `why`, your Claude's reason
+  // for a guess, follows a single command's link.
+  codeBlock(t, piece, id, put = (command) => this.putFromChat(command), why = null) {
     const mono = settings()?.font || "Menlo";
     const commands = piece.lines.map((line) => line.command).filter(Boolean);
     const code = piece.lines.map((line) => line.text).join("\n");
@@ -1046,7 +1072,10 @@ export default class Parrot extends View {
       .children(commands.map((command, n) => {
         const risky = isRisky(command);
         const label = `↵ ${commands.length === 1 ? "Put on prompt" : command}${risky ? " · deletes or pushes" : ""}`;
-        return link(`put-${n}`, label, risky ? RED : GREEN, "Put it on the terminal's prompt: Enter runs it", () => this.putFromChat(command));
+        const putLink = link(`put-${n}`, label, risky ? RED : GREEN, PUT_TIP, () => put(command));
+        if (commands.length > 1 || !why) return putLink;
+        return h_flex().w_full().gap(6).items_center().child(putLink.flex_none())
+          .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.muted).child(`· ${why}`));
       }));
   }
 
