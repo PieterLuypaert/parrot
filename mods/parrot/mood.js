@@ -141,14 +141,22 @@ export function rightPanels(layout) {
   return taken;
 }
 
-export function corner(width, layout, size) {
+// With Herdr zoomed in, the window's width and a window's place are in screen points, while the
+// tab bar, the panels and the parrot itself are drawn `zoom` times as big.
+export function corner(width, layout, size, zoom = 1) {
   const bar = find(layout, (n) => n.id === "tabs-row") ?? find(layout, (n) => n.id === "tabs");
   const holder = find(layout, (n) => Boolean(titleBar(n)));
   const header = holder ? titleBar(holder) : null;
   return {
-    x: Math.max(0, Math.round(width - rightPanels(layout) - size - MARGIN)),
-    y: (bar?.size?.px ?? 42) + (header?.height ?? 0) + 8,
+    x: Math.max(0, Math.round(width - zoom * (rightPanels(layout) + size + MARGIN))),
+    y: Math.round(zoom * ((bar?.size?.px ?? 42) + (header?.height ?? 0) + 8)),
   };
+}
+
+// Herdr's zoom, 1 when it is not set.
+export function zoomOf(settings) {
+  const zoom = Number(settings?.zoom);
+  return zoom > 0 ? zoom : 1;
 }
 
 export function samePlace(a, b) {

@@ -23,7 +23,7 @@ import {
   checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, settings, setShared,
   shared, terminals, theme, watchFolder,
 } from "herdr";
-import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shellOf, shows, watched } from "./mood.js";
+import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, blinkGap, corner, find, frame, mood, runsCommand, samePlace, shellOf, shows, watched, zoomOf } from "./mood.js";
 import {
   MISSING_CLAUDE, OUTPUT_LINES, SUGGEST_TIMEOUT, TIMEOUT, claudeArgs, claudeCandidates, explainFailure, mask, messageId, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, without, withoutChat,
@@ -83,12 +83,16 @@ const chats = () => shared(CHATS) ?? {};
 const busy = () => shared(BUSY) ?? {};
 const stop = (_e, cx) => cx.stop_propagation();
 
-// The chat opens left of the parrot at `at`, its tail at the parrot's head. The alert beside the
-// parrot closes first: the chat shows it itself, and the two would sit on top of each other.
+// Where a window `width` wide opens left of the parrot at `at`, its tail at the parrot's head: a
+// place is in screen points, and with Herdr zoomed in the window is drawn bigger.
+const leftOf = (at, width) => ({ x: Math.max(0, Math.round(at.x - zoomOf(settings()) * (width - 10))), y: at.y });
+
+// The chat opens left of the parrot. The alert beside the parrot closes first: the chat shows it
+// itself, and the two would sit on top of each other.
 function openChat(at) {
   const alertWindow = shared(ALERT_WINDOW);
   if (alertWindow) closeOverlay(alertWindow);
-  openOverlay({ mod: "parrot", props: { chat: true }, kind: "window", frame: "none", width: CHAT_W, height: CHAT_H, at: { x: Math.max(0, at.x + 10 - CHAT_W), y: at.y } });
+  openOverlay({ mod: "parrot", props: { chat: true }, kind: "window", frame: "none", width: CHAT_W, height: CHAT_H, at: leftOf(at, CHAT_W) });
 }
 
 // An alert the person is still to act on; one whose suggestion they took waits, out of sight, for
@@ -108,7 +112,7 @@ const openNoteNow = (terminal) => {
 
 // What the parrot says about an error opens there too, as big as what it says.
 function openAlert(at) {
-  openOverlay({ mod: "parrot", props: { alert: true }, kind: "window", frame: "none", width: ALERT_W, at: { x: Math.max(0, at.x + 10 - ALERT_W), y: at.y } });
+  openOverlay({ mod: "parrot", props: { alert: true }, kind: "window", frame: "none", width: ALERT_W, at: leftOf(at, ALERT_W) });
 }
 
 const parrotHome = () => `${home()}/.parrot`;
@@ -449,7 +453,7 @@ export default class Parrot extends View {
     const want = shows({ on: shared(ON) === true, terminal: this.terminal() });
     const open = shared(OPEN) === true;
     const width = shared(WIDTH);
-    const at = width && width.at >= this.since ? corner(width.points, layout(), BOX) : null;
+    const at = width && width.at >= this.since ? corner(width.points, layout(), BOX, zoomOf(settings())) : null;
     const moved = Boolean(open && at && !samePlace(at, shared(CORNER)));
     if (want === open && !moved) {
       this.pending = 0;

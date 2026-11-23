@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shellOf, shows, watched } from "../mods/parrot/mood.js";
+import { MARGIN, SLEEP_AFTER, activity, blinkGap, corner, frame, isShell, mood, runsCommand, samePlace, shellOf, shows, watched, zoomOf } from "../mods/parrot/mood.js";
 
 const zsh = { key: "shell", name: "zsh", shell: true, agent: false };
 const node = { key: "program", name: "node", shell: false, agent: false };
@@ -159,6 +159,13 @@ describe("corner", () => {
 
   test("lands in the top right corner, under the tab bar and the panes' title bars", () => {
     expect(corner(1512, layout, 104)).toEqual({ x: 1512 - 104 - MARGIN, y: 42 + 30 + 8 });
+  });
+
+  test("keeps to that corner with Herdr zoomed in, where all but the window's width grows", () => {
+    expect(corner(2560, layout, 104, 2)).toEqual({ x: 2560 - 2 * (104 + MARGIN), y: 2 * (42 + 30 + 8) });
+    expect(zoomOf({ zoom: 1.5 })).toBe(1.5);
+    expect(zoomOf({})).toBe(1);
+    expect(zoomOf({ zoom: "nope" })).toBe(1);
   });
 
   test("finds the title bar on the block that holds the panes, as Herdr's layouts set it", () => {
