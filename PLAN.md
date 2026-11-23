@@ -1,6 +1,6 @@
 # Parrot: plan
 
-Plan version 10, 23 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
+Plan version 11, 23 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
 
 A pixel-art parrot in the Herdr app that watches while you work. When it sees an error, in your terminal or beyond it (your stack's logs, your PR's CI, your local app in the browser), it startles. Click it and your own Claude works out what went wrong and explains it in a speech bubble, with a fix as a command you run with one click. You can also ask it anything yourself, at any time.
 
@@ -247,8 +247,14 @@ Each piece is a PR of its own that works by itself.
    - the same words for the same thing everywhere;
    - the questions parrot asks for you in the language you chat in;
    - a timer while Claude thinks, and which terminal the parrot watches.
-7. **Run and checks:** the fix as one button that also runs it (also with several steps), the red label with 3 seconds to cancel, the Checked or Hunch label with the fixed list of checks, and buttons that take you to a pane, file or URL.
-8. **Finishing touches:** the squawk (an MP3), silent mode, pirate talk on or off, model choice. The README with screenshots in light and dark came early, with 0.4.1.
+7. **Run with one click** (run and checks split in three in plan version 11):
+   - ▶ Run under a command, and ▶ Run all under a block with several, which runs them in order as one line that stops at the first that fails;
+   - only at the prompt, and never a command with a part still to fill in, such as `<url>`;
+   - what throws away, overwrites or pushes counts down 3 seconds, and a click or Esc stops it;
+   - how it ended, from the hook, under the block.
+8. **Checks:** the Checked or Hunch label, with the fixed list of checks Claude may run.
+9. **Links that take you there:** a file at its line in Cursor, a URL in the browser, a terminal's pane.
+10. **Finishing touches:** the squawk (an MP3), silent mode, pirate talk on or off, model choice. The README with screenshots in light and dark came early, with 0.4.1.
 
 **Out of scope for now:** the watcher (running programs in other panes, your stack's logs, "What it saw"), your PR's CI and the browser extension.
 
@@ -264,7 +270,10 @@ Parrot follows [semver](https://semver.org). Until everything in the build order
 | 0.4.0 | Commands from the chat on your prompt |
 | 0.5.0 | A clear first run and a clean way out |
 | 0.6.0 | One look and one language |
-| 0.7.0 | Run and checks |
+| 0.5.1 | The parrot keeps to its corner at any zoom (a fix) |
+| 0.7.0 | Run with one click |
+| 0.8.0 | Checks |
+| 0.9.0 | Links that take you there |
 | 1.0.0 | Finishing touches |
 
 - **Fixes in between** are patch versions, such as 0.3.1.
