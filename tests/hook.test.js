@@ -49,6 +49,12 @@ describe("hook.zsh", () => {
     expect(existsSync(join(home, "events"))).toBe(false);
   });
 
+  test("writes nothing, and makes no folder, once parrot's folder is gone", () => {
+    const home = join(mkdtempSync(join(tmpdir(), "parrot-hook-")), ".parrot");
+    run(home, ["false"]);
+    expect(existsSync(home)).toBe(false);
+  });
+
   test("prints nothing of its own", () => {
     const home = mkdtempSync(join(tmpdir(), "parrot-hook-"));
     expect(run(home, ["true"]).trim()).toBe("");

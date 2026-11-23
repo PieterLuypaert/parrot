@@ -165,3 +165,4 @@ add_button "$layout"
 add_hook
 "$herdr" check "$app_home/mods/parrot"
 echo "Parrot in the tab bar, or cmd-alt-p, turns the parrot on or off. It shows while a shell has the focus."
+echo "./uninstall.sh takes it out again."

@@ -14,6 +14,7 @@
 //   token is not the latest closes itself, so there is never more than one.
 // - {chat: true}: the chat beside it, which a click on the parrot or ⌥⇧⌘P (parrot.chat) opens.
 //   parrot.explain asks about the current alert there, as its Ask Parrot button does.
+// parrot.forget clears everything parrot keeps in the app; uninstall.sh sends it.
 // `herdr-app do parrot.calm | parrot.watch | parrot.sleep | parrot.think` shows a mood for ten seconds.
 
 import { View, div, image } from "gpui-kit";
@@ -55,6 +56,8 @@ const ALERT_WINDOW = "parrot.alertWindow";
 const DANCE_AT = "parrot.dance";
 const NOTE = "parrot.note";
 const WELCOMED = "parrot.welcomed";
+// Everything parrot keeps in the app, for parrot.forget; parrot.thinking is from an early build.
+const KEPT = [ON, OPEN, OVERLAY, PERCH, WIDTH, CORNER, CHAT, CHATS, ASK, BUSY, ALERT, PLEA, ALERT_WINDOW, DANCE_AT, NOTE, WELCOMED, "parrot.thinking"];
 const ALERT_W = 380;
 const SHAKE_FOR = 700;
 const SETTLE = 1500;
@@ -275,13 +278,21 @@ export default class Parrot extends View {
     cx.spawn(async (cx) => {
       for (;;) {
         const command = await nextCommand();
-        if (command !== "toggle" && command !== "chat") continue;
+        if (command !== "toggle" && command !== "chat" && command !== "forget") continue;
         // cx first: after a reload, the old build's loop ends here instead of acting twice.
         cx.notify();
         if (command === "toggle") this.toggle();
+        else if (command === "forget") this.forget();
         else if (shared(OPEN) !== true) this.explainChat();
       }
     });
+  }
+
+  // parrot.forget, which uninstall.sh sends: its windows close, and the chats and everything else
+  // parrot keeps in the app go, so it is off too.
+  forget() {
+    for (const id of [shared(CHAT), shared(OVERLAY), shared(ALERT_WINDOW)]) if (id) closeOverlay(id);
+    for (const key of KEPT) setShared(key, null);
   }
 
   // On or off, from the button or ⌥⌘P. Turning it on needs a terminal in the tab to watch.

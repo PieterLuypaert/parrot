@@ -2,9 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 
 const script = join(import.meta.dir, "..", "layout.jq");
+const undo = join(import.meta.dir, "..", "unlayout.jq");
 
-function apply(layout) {
-  const run = Bun.spawnSync(["jq", "-c", "-f", script], { stdin: Buffer.from(JSON.stringify(layout)) });
+function apply(layout, file = script) {
+  const run = Bun.spawnSync(["jq", "-c", "-f", file], { stdin: Buffer.from(JSON.stringify(layout)) });
   if (run.exitCode !== 0) throw new Error(run.stderr.toString().trim());
   return JSON.parse(run.stdout.toString());
 }
@@ -73,5 +74,25 @@ describe("layout.jq", () => {
   test("refuses a layout without a tab bar, or that is no layout", () => {
     expect(() => apply({ id: "root", type: "column", children: [work] })).toThrow("it has no tab bar");
     expect(() => apply({ type: "column" })).toThrow("it is not a layout");
+  });
+});
+
+describe("unlayout.jq", () => {
+  test("gives back Herdr's own tab bar as it was, row and all", () => {
+    const layout = { id: "root", type: "row", children: [{ id: "sidebar", type: "block" }, { id: "main", type: "column", children: [tabs, work] }] };
+    expect(apply(apply(layout), undo)).toEqual(layout);
+  });
+
+  test("keeps a shared row with the other buttons in it", () => {
+    const layout = {
+      id: "root", type: "column",
+      children: [{ id: "tabs-row", type: "row", size: { px: 42 }, children: [{ ...tabs, size: { weight: 1 } }, { id: "chartroom-button", type: "block" }] }, work],
+    };
+    expect(apply(apply(layout), undo)).toEqual(layout);
+  });
+
+  test("leaves a layout without the button as it is", () => {
+    const layout = { id: "root", type: "column", children: [tabs, work] };
+    expect(apply(layout, undo)).toEqual(layout);
   });
 });
