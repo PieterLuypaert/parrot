@@ -22,7 +22,7 @@ import { View, div, image } from "gpui-kit";
 import { Input, InputState, ScrollHandle, TextView, h_flex, v_flex } from "gpui-base";
 import {
   checking, closeOverlay, exec, focused, hc, home, layout, nextCommand, notify, openOverlay, panes, props, readTextFile, run, settings, setShared,
-  shared, terminals, theme, watchFolder,
+  shared, terminals, theme, watchFolder, window as appWindow,
 } from "herdr";
 import { DANCE_BEAT, DANCE_BEATS, MOODS, PREVIEW_FOR, activity, atPrompt, blinkGap, corner, find, frame, mood, samePlace, shellOf, shows, terminalLabel, watched, zoomOf } from "./mood.js";
 import {
@@ -64,7 +64,15 @@ const KEPT = [ON, OPEN, OVERLAY, PERCH, WIDTH, CORNER, CHAT, CHATS, ASK, BUSY, A
 // How long a command that deletes, overwrites or pushes waits before it runs, so a click or Esc
 // can still stop it.
 const COUNTDOWN = 3000;
+// At most one new measurement of the window this soon after the last, when Herdr comes back.
+const MEASURE_GAP = 2000;
 const ALERT_W = 380;
+
+// What of the window's state can change its size: fullscreen and maximized.
+const windowState = () => {
+  const now = appWindow();
+  return `${Boolean(now?.fullscreen)}|${Boolean(now?.maximized)}`;
+};
 const SHAKE_FOR = 700;
 const SETTLE = 1500;
 const CALM = { from: 0, to: 2, period: 2800 };
@@ -331,7 +339,7 @@ export default class Parrot extends View {
     setShared(OVERLAY, null);
     setShared(CHAT, null);
     setShared(PERCH, null);
-    openOverlay({ mod: "parrot", props: { measure: true }, kind: "window", frame: "none", width: 1, height: 2, at: { x: 0, y: 0 } });
+    this.measureWindow();
     cx.spawn(async (cx) => {
       for (;;) {
         const command = await nextCommand();
@@ -370,6 +378,8 @@ export default class Parrot extends View {
       setShared(NOTE, { id: messageId(), kind: "welcome" });
       setShared(DANCE_AT, Date.now());
     }
+    // Coming out, it measures the window again: it may have moved to another screen meanwhile.
+    if (!on) this.measureWindow();
     this.markOff(on);
   }
 
@@ -507,11 +517,30 @@ export default class Parrot extends View {
     return watched(focused(), panes(), terminals());
   }
 
+  // Herdr tells mods no window size, so a strip two points high across the window measures it. It
+  // does so when parrot starts and when it comes out, and again when the window may have changed
+  // size: it went fullscreen or back, was maximized, or became the active window again while the
+  // parrot is out, as after moving Herdr to another screen.
+  measureWindow() {
+    this.measuredAt = Date.now();
+    this.windowState = windowState();
+    openOverlay({ mod: "parrot", props: { measure: true }, kind: "window", frame: "none", width: 1, height: 2, at: { x: 0, y: 0 } });
+  }
+
+  followWindow() {
+    const now = appWindow();
+    const cameBack = Boolean(now?.active) && this.wasActive === false;
+    this.wasActive = Boolean(now?.active);
+    if (windowState() !== this.windowState) return this.measureWindow();
+    if (cameBack && shared(ON) === true && Date.now() - (this.measuredAt ?? 0) > MEASURE_GAP) this.measureWindow();
+  }
+
   // The button keeps the parrot in step with the tab and the layout: out while parrot is on and the
   // tab has a terminal to watch, in the corner of the panes left of any panel that is open, and
   // closed otherwise, its chat too. A change it asked for gets a moment to land.
   sync(cx) {
     if (checking()) return;
+    this.followWindow();
     this.takePlea(cx);
     this.takeAsk(cx);
     this.listen(this.terminal(), cx);
