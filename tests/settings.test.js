@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULTS, MODELS, modelLabel, settingsFrom, withSetting } from "../mods/parrot/settings.js";
+import { DEFAULTS, MODELS, OFF_ON, modelLabel, settingsFrom, withSetting } from "../mods/parrot/settings.js";
 
 describe("settingsFrom", () => {
   test("starts on Sonnet when nothing is kept yet", () => {
@@ -9,6 +9,12 @@ describe("settingsFrom", () => {
 
   test("keeps a model it knows", () => {
     for (const { id } of MODELS) expect(settingsFrom({ model: id }).model).toBe(id);
+  });
+
+  test("is not silent until you turn it on, and only by a real true", () => {
+    expect(settingsFrom(null).silent).toBe(false);
+    expect(settingsFrom({ silent: true }).silent).toBe(true);
+    expect(settingsFrom({ silent: "yes" }).silent).toBe(false);
   });
 
   test("never passes on a model it does not know", () => {
@@ -21,6 +27,13 @@ describe("settingsFrom", () => {
 describe("withSetting", () => {
   test("changes one setting", () => {
     expect(withSetting(null, "model", "opus")).toEqual({ ...DEFAULTS, model: "opus" });
+  });
+
+  test("turns silent mode on and off, keeping the model", () => {
+    const on = withSetting({ model: "opus" }, "silent", true);
+    expect(on).toEqual({ model: "opus", silent: true });
+    expect(withSetting(on, "silent", false)).toEqual({ model: "opus", silent: false });
+    expect(OFF_ON.map((one) => one.id)).toEqual([false, true]);
   });
 
   test("leaves the settings as they were for a value or a key it does not know", () => {

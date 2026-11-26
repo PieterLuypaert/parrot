@@ -8,13 +8,16 @@ export const MODELS = [
   { id: "opus", label: "Opus", tip: "The deepest, for hard questions: it takes longer" },
 ];
 
-export const DEFAULTS = { model: "sonnet" };
+export const DEFAULTS = { model: "sonnet", silent: false };
+
+// An on/off setting's two choices, as the settings strip shows them.
+export const OFF_ON = [{ id: false, label: "Off" }, { id: true, label: "On" }];
 
 // The settings as kept, with anything missing or unknown at its default, so an older or broken
 // value never reaches Claude.
 export function settingsFrom(kept) {
   const model = MODELS.some((one) => one.id === kept?.model) ? kept.model : DEFAULTS.model;
-  return { model };
+  return { model, silent: kept?.silent === true };
 }
 
 // The settings with one changed; a value it does not know leaves them as they were.
