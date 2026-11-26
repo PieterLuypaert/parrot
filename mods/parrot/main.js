@@ -33,7 +33,7 @@ import { alertFor, headline, parseEvent, questionFor, reaction, runOutcome, want
 import { editorCandidates, filePlaces, fileTarget, linkTarget, linkify, terminalsBlock } from "./links.js";
 import { HOOK_GRACE, hookPath, noteFor } from "./notes.js";
 import { hasPlaceholder, isRisky, runLineOf, scriptsFrom, segments, shellQuote } from "./shell.js";
-import { MODELS, modelLabel, settingsFrom, withSetting } from "./settings.js";
+import { MODELS, OFF_ON, modelLabel, settingsFrom, withSetting } from "./settings.js";
 
 const FRAMES = "mods/parrot/frames/";
 const SIZE = 96;
@@ -122,6 +122,10 @@ const openAlertNow = () => {
   const alert = shared(ALERT);
   return alert && !alert.taken ? alert : null;
 };
+
+// The alert the parrot shows beside it by itself: none in silent mode, where it only wears a "!"
+// and a click opens the chat with the alert.
+const loudAlert = () => (mySettings().silent ? null : openAlertNow());
 
 // A note, such as hello or why it cannot hear a terminal, shows where an alert would, while there
 // is no alert. One about a terminal shows only while the parrot watches that terminal.
@@ -579,9 +583,9 @@ export default class Parrot extends View {
   }
 
   // What the parrot says about an error, or a note, opens beside it while the chat is closed; an
-  // open chat shows it itself.
+  // open chat shows it itself. In silent mode an alert waits for a click.
   syncAlert() {
-    const said = openAlertNow() ?? openNoteNow(this.terminal());
+    const said = loudAlert() ?? openNoteNow(this.terminal());
     const win = shared(ALERT_WINDOW);
     const chatOpen = Boolean(shared(CHAT));
     if (win && (!said || chatOpen)) {
@@ -776,14 +780,15 @@ export default class Parrot extends View {
       preview: this.preview,
       thinking: Object.keys(busy()).length > 0,
       alarm: Boolean(openAlertNow()),
+      silent: mySettings().silent,
       dancing: Date.now() - (shared(DANCE_AT) ?? 0) < DANCE_BEAT * DANCE_BEATS,
     });
   }
 
-  // Startled, it shakes once for each new alert; dancing, it steps by a short timer that stops by
-  // itself. The other moods move natively.
+  // Startled, it shakes once for each new alert, unless it is silent; dancing, it steps by a short
+  // timer that stops by itself. The other moods move natively.
   animate(cx) {
-    const alert = openAlertNow();
+    const alert = loudAlert();
     if (alert && alert.id !== this.alertSeen) {
       this.alertSeen = alert.id;
       this.shaking = true;
@@ -825,8 +830,10 @@ export default class Parrot extends View {
     this.shown = this.currentMood();
     if (!checking()) this.animate(cx);
     const picture = FRAMES + frame(this.shown, this.blinking, this.beat ?? 0) + ".png";
-    const above = { sleep: ["z", "z z", "z z Z", ""], think: [".", "..", "...", ""] }[this.shown];
     const alert = openAlertNow();
+    // Silent, it wears a small "!" where its z's and dots go.
+    const marked = Boolean(alert) && mySettings().silent;
+    const above = marked ? null : { sleep: ["z", "z z", "z z Z", ""], think: [".", "..", "...", ""] }[this.shown];
     const watching = terminalLabel(watched(focused(), panes(), terminals()), panes(), home());
     const tip = alert ? `${headline(alert)}. Click to see it in the chat`
       : this.shown === "sleep" ? "Parrot is asleep: click to wake it and ask something"
@@ -847,6 +854,9 @@ export default class Parrot extends View {
       .child(perch)
       .when(Boolean(above), (el) => el.child(
         div().absolute().top(2).right(4).text_size(13).font_semibold().text_color(t.muted).frames(above, this.shown === "think" ? 380 : 700),
+      ))
+      .when(marked, (el) => el.child(
+        div().absolute().top(4).right(8).px(5).text_size(12).font_bold().bg(RED).border_b_2().border_color(RED_DARK).text_color(WHITE).child("!"),
       ));
   }
 
@@ -892,7 +902,7 @@ export default class Parrot extends View {
   // Beside the parrot, a bubble of its own with a pixel shadow and its tail at the parrot's head,
   // as big as what it says. It never drags.
   alertWindow(t, cx) {
-    const alert = openAlertNow();
+    const alert = loudAlert();
     const note = openNoteNow(watched(focused(), panes(), terminals()));
     this.keepTicking(Boolean(alert?.asking) || Boolean(this.countdown), cx);
     if (!alert && !note) return div();
@@ -1110,6 +1120,10 @@ export default class Parrot extends View {
       .child(this.settingRow(t, {
         key: "model", name: "Model", tip: "The model your Claude answers the chat on. Its guesses after a typo stay on Haiku, for speed",
         options: MODELS, chosen: now.model, pick: (id) => setSetting("model", id),
+      }))
+      .child(this.settingRow(t, {
+        key: "silent", name: "Silent", tip: "At an error the parrot only shows a small ! instead of startling and opening its bubble. Click it to see the error in the chat",
+        options: OFF_ON, chosen: now.silent, pick: (on) => setSetting("silent", on),
       }));
   }
 

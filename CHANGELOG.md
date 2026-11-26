@@ -4,6 +4,10 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Added
+
+- **Silent** in the chat's settings: at an error the parrot keeps its mood and wears a small red **!** instead of startling. It does not shake and its bubble does not open by itself; a click on the parrot shows the error in the chat, with Explain and Fix it. Your Claude still guesses what you meant after a typo, so the guesses are there when you look.
+
 ## [0.11.0] - 2026-11-26
 
 Your pick of Claude.
