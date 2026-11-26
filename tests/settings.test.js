@@ -17,6 +17,13 @@ describe("settingsFrom", () => {
     expect(settingsFrom({ silent: "yes" }).silent).toBe(false);
   });
 
+  test("talks plainly until pirate talk is turned on", () => {
+    expect(settingsFrom(null).pirate).toBe(false);
+    expect(settingsFrom({ pirate: true }).pirate).toBe(true);
+    expect(settingsFrom({ pirate: 1 }).pirate).toBe(false);
+    expect(withSetting({ model: "haiku", silent: true }, "pirate", true)).toEqual({ model: "haiku", silent: true, pirate: true });
+  });
+
   test("never passes on a model it does not know", () => {
     expect(settingsFrom({ model: "gpt-4" }).model).toBe("sonnet");
     expect(settingsFrom({ model: "--dangerously-skip-permissions" }).model).toBe("sonnet");
@@ -31,8 +38,8 @@ describe("withSetting", () => {
 
   test("turns silent mode on and off, keeping the model", () => {
     const on = withSetting({ model: "opus" }, "silent", true);
-    expect(on).toEqual({ model: "opus", silent: true });
-    expect(withSetting(on, "silent", false)).toEqual({ model: "opus", silent: false });
+    expect(on).toEqual({ ...DEFAULTS, model: "opus", silent: true });
+    expect(withSetting(on, "silent", false)).toEqual({ ...DEFAULTS, model: "opus", silent: false });
     expect(OFF_ON.map((one) => one.id)).toEqual([false, true]);
   });
 
