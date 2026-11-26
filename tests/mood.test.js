@@ -145,6 +145,13 @@ describe("mood", () => {
     expect([0, 1, 2, 3, 4].map((beat) => frame("dance", false, beat))).toEqual(["dance-a", "dance-b", "dance-c", "dance-b", "dance-a"]);
   });
 
+  test("keeps its mood at an error in silent mode", () => {
+    expect(mood({ terminal: shell, idleFor: 0, alarm: true, silent: true })).toBe("calm");
+    expect(mood({ terminal: busy, idleFor: 0, alarm: true, silent: true })).toBe("watch");
+    expect(mood({ terminal: shell, idleFor: SLEEP_AFTER, alarm: true, silent: true })).toBe("sleep");
+    expect(mood({ terminal: shell, idleFor: 0, alarm: true, silent: false })).toBe("alarm");
+  });
+
   test("thinks while Claude works on a question, even asleep or watching a command", () => {
     expect(mood({ terminal: busy, idleFor: SLEEP_AFTER, thinking: true })).toBe("think");
     expect(frame("think", true)).toBe("think");

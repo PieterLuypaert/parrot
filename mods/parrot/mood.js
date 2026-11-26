@@ -82,11 +82,12 @@ export function activity(focus, terminal) {
   return [focus?.terminal ?? "", terminal?.program?.key ?? "", terminal?.program?.name ?? "", terminal?.foreground?.pid ?? ""].join("|");
 }
 
-export function mood({ terminal, idleFor, preview, thinking, alarm, dancing }) {
+// In silent mode an alert leaves the mood as it is: the parrot only wears a small "!".
+export function mood({ terminal, idleFor, preview, thinking, alarm, silent = false, dancing }) {
   if (preview) return preview;
   if (dancing) return "dance";
   if (thinking) return "think";
-  if (alarm) return "alarm";
+  if (alarm && !silent) return "alarm";
   if (runsCommand(terminal)) return "watch";
   if (idleFor >= SLEEP_AFTER) return "sleep";
   return "calm";
