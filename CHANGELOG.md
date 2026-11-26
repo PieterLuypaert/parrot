@@ -6,7 +6,7 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ### Added
 
-- **Pirate talk** in the chat's settings: your Claude answers like a cheerful pirate, in the language you chat in, and so do the parrot's own lines: thinking, its guesses after a typo, and the question whether to explain or fix it. Commands, code, file paths, errors, buttons and the ✓ Checked or ~ Hunch label stay exactly as they are. It is off by default.
+- **Pirate talk** in the chat's settings: your Claude answers like a cheerful pirate, in the language you chat in, and so do the whys under its guesses after a typo. The parrot's own lines, which are in English, follow: thinking, the line over its guesses or that it has none, the question whether to explain or fix it, and the empty chat. Commands, code, file paths, errors, buttons and the ✓ Checked or ~ Hunch label stay exactly as they are. It is off by default.
 
 ## [0.12.0] - 2026-11-26
 

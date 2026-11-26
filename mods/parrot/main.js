@@ -1136,7 +1136,7 @@ export default class Parrot extends View {
         options: OFF_ON, chosen: now.silent, pick: (on) => setSetting("silent", on),
       }))
       .child(this.settingRow(t, {
-        key: "pirate", name: "Pirate talk", tip: "Your Claude and the parrot talk like a pirate, in the language you chat in. Commands, paths, buttons and errors stay exact",
+        key: "pirate", name: "Pirate talk", tip: "Your Claude talks like a pirate in the language you chat in, and so does the parrot, in English. Commands, paths, buttons and errors stay exact",
         options: OFF_ON, chosen: now.pirate, pick: (on) => setSetting("pirate", on),
       }));
   }
