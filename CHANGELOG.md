@@ -4,6 +4,10 @@ All notable changes to parrot are listed here. The format follows [Keep a Change
 
 ## [Unreleased]
 
+### Added
+
+- **⚙** in the chat's header opens its settings. **Model** picks the model your Claude answers the chat on: Haiku, Sonnet or Opus. It holds for every question, Explain and Fix it included, and survives a restart. Sonnet stays the default, and the guesses after a typo stay on Haiku, for speed.
+
 ## [0.10.2] - 2026-11-23
 
 The parrot stays on your screen.
