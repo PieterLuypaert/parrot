@@ -33,6 +33,7 @@ import { alertFor, headline, parseEvent, questionFor, reaction, runOutcome, want
 import { editorCandidates, filePlaces, fileTarget, linkTarget, linkify, terminalsBlock } from "./links.js";
 import { HOOK_GRACE, hookPath, noteFor } from "./notes.js";
 import { hasPlaceholder, isRisky, runLineOf, scriptsFrom, segments, shellQuote } from "./shell.js";
+import { MODELS, modelLabel, settingsFrom, withSetting } from "./settings.js";
 
 const FRAMES = "mods/parrot/frames/";
 const SIZE = 96;
@@ -60,7 +61,8 @@ const NOTE = "parrot.note";
 const WELCOMED = "parrot.welcomed";
 // Everything parrot keeps in the app, for parrot.forget; parrot.thinking is from an early build.
 const RUNS = "parrot.runs";
-const KEPT = [ON, OPEN, OVERLAY, PERCH, WIDTH, CORNER, CHAT, CHATS, ASK, BUSY, ALERT, PLEA, ALERT_WINDOW, DANCE_AT, NOTE, WELCOMED, RUNS, "parrot.thinking"];
+const SETTINGS = "parrot.settings";
+const KEPT = [ON, OPEN, OVERLAY, PERCH, WIDTH, CORNER, CHAT, CHATS, ASK, BUSY, ALERT, PLEA, ALERT_WINDOW, DANCE_AT, NOTE, WELCOMED, RUNS, SETTINGS, "parrot.thinking"];
 // How long a command that deletes, overwrites or pushes waits before it runs, so a click or Esc
 // can still stop it.
 const COUNTDOWN = 3000;
@@ -98,6 +100,8 @@ const HUNCH_LIGHT = "#9a6700";
 
 const chats = () => shared(CHATS) ?? {};
 const busy = () => shared(BUSY) ?? {};
+const mySettings = () => settingsFrom(shared(SETTINGS));
+const setSetting = (key, value) => setShared(SETTINGS, withSetting(shared(SETTINGS), key, value));
 const stop = (_e, cx) => cx.stop_propagation();
 
 // Where a window `width` wide opens left of the parrot at `at`, its tail at the parrot's head: a
@@ -675,15 +679,15 @@ export default class Parrot extends View {
     });
   }
 
-  // Your own Claude, in the terminal's folder, with the terminal's last output (masked first, then
-  // cut) and the project's conversation so far.
+  // Your own Claude, on the model you chose, in the terminal's folder, with the terminal's last
+  // output (masked first, then cut) and the project's conversation so far.
   async askClaude({ root, cwd, address, branch, question }) {
     const output = address ? await this.readOutput(address) : "";
     const prompt = promptFor({ question, cwd, branch, output, terminals: terminalsBlock(spaceTerminals(address)) });
     const bin = await this.claudeBin();
     if (!bin) return { error: MISSING_CLAUDE };
     try {
-      return parseAnswer(await exec(bin, claudeArgs({ prompt, session: chats()[root]?.session }), { cwd, timeout: TIMEOUT }));
+      return parseAnswer(await exec(bin, claudeArgs({ prompt, session: chats()[root]?.session, model: mySettings().model }), { cwd, timeout: TIMEOUT }));
     } catch (error) {
       const why = String(error?.message ?? error);
       return { error: explainFailure(why) ?? `Parrot could not reach Claude: ${why}` };
@@ -1069,6 +1073,7 @@ export default class Parrot extends View {
           .border_2().border_color(RED_DARK)
           .child(this.stripe())
           .child(this.chatHeader(t, where, terminalLabel(terminal, panes(), home()), root, messages.length > 0))
+          .when(Boolean(this.showSettings), (el) => el.child(this.settingsStrip(t)))
           .child(this.chatList(t, messages, thinking, root, alert, note))
           .child(this.composer(t, thinking))))
       .child(this.tail());
@@ -1092,7 +1097,34 @@ export default class Parrot extends View {
         .when(Boolean(watching), (el) => el.tooltip(`Parrot watches ${watching} and answers about its project`))
         .child(where))
       .when(canClear, (el) => el.child(this.chatButton(t, "parrot-chat-clear", "Clear chat", "Clear this project's chat and start a new conversation (or type /clear)", () => this.clearChat(root))))
+      .child(this.chatButton(t, "parrot-chat-settings", "⚙", "Settings", () => { this.showSettings = !this.showSettings; })
+        .when(Boolean(this.showSettings), (el) => el.bg(t.selected).text_color(t.foreground)))
       .child(this.chatButton(t, "parrot-chat-close", "×", "Close (Esc)", () => closeOverlay(props()?.overlay)));
+  }
+
+  // The settings, under the header while ⚙ is pressed. Shared state keeps them, so they hold for
+  // every chat and survive a restart.
+  settingsStrip(t) {
+    const now = mySettings();
+    return v_flex().flex_none().px(12).py(10).gap(8).border_b_2().border_color(t.border)
+      .child(this.settingRow(t, {
+        key: "model", name: "Model", tip: "The model your Claude answers the chat on. Its guesses after a typo stay on Haiku, for speed",
+        options: MODELS, chosen: now.model, pick: (id) => setSetting("model", id),
+      }));
+  }
+
+  // One setting: its name, then its choices side by side, the chosen one filled in the parrot's red.
+  settingRow(t, { key, name, tip, options, chosen, pick }) {
+    return h_flex().gap(10).items_center()
+      .child(div().id(`parrot-setting-${key}`).w(84).flex_none().text_size(12).text_color(t.muted).tooltip(tip).child(name))
+      .child(h_flex().gap(4).children(options.map((one) => {
+        const pill = div().id(`parrot-setting-${key}-${one.id}`).h(24).px(10).flex().items_center().border_2().text_size(12).font_bold().cursor_pointer()
+          .when(Boolean(one.tip), (el) => el.tooltip(one.tip))
+          .on_click((_e, cx) => { pick(one.id); cx.notify(); })
+          .child(one.label);
+        return one.id === chosen ? pill.bg(RED).border_color(RED_DARK).text_color(WHITE)
+          : pill.border_color(t.border).text_color(t.muted).hover((s) => s.text_color(t.foreground));
+      })));
   }
 
   // The project's messages go, and its next question starts a new conversation with Claude. An
@@ -1316,7 +1348,7 @@ export default class Parrot extends View {
       .child(v_flex().flex_1().min_w(0).gap(6).text_size(12.5).text_color(t.muted)
         .child(div().text_size(13).font_bold().text_color(t.foreground).child(root ? `Ask anything about ${projectName(root)}` : "Open a terminal in this tab first"))
         .child(div().child("How something works, where something lives, why a command failed. Parrot reads the project's files and the terminal's last output, may run a few read-only checks such as git status, and never changes anything."))
-        .child(div().text_color(t.dim).child("On your own Claude subscription, with Sonnet.")));
+        .child(div().text_color(t.dim).child(`On your own Claude subscription, with ${modelLabel(mySettings().model)}. ⚙ changes the model.`)));
   }
 
   chatButton(t, id, label, tip, action) {

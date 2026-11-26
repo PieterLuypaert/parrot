@@ -52,12 +52,13 @@ The first time you turn the parrot on, it says hello. A terminal that has not lo
 - **▶ Run** under a command, or **▶ Run all** under several: run it in the terminal now. A red one waits three seconds, and a click or Esc stops it.
 - A file in an answer, such as `src/orders.ts:42`, opens in Cursor (or VS Code) at that line. A terminal it names takes you to that pane.
 - **Clear chat**, or `/clear`: start the project's conversation over.
+- **⚙** in the chat: settings. **Model** picks the model the chat asks on: Haiku, Sonnet (the default) or Opus.
 
 ## What goes to Claude
 
 Everything runs on your own Claude subscription through `claude -p`. Claude can only read: the project's files, and a fixed list of checks that only read, such as `git status`, `git remote -v` and `docker compose ps`. Claude Code refuses any other command. It changes nothing and uses no MCP servers, hooks or plugins.
 
-- **A question** takes along the terminal's folder, its branch and its last 60 lines, and the other terminals open in that space: their folder and what runs in them. Claude picks what to read and check itself, and each answer says **✓ Checked** with what it looked at, or **~ Hunch**.
+- **A question** goes to the model you picked under ⚙ and takes along the terminal's folder, its branch and its last 60 lines, and the other terminals open in that space: their folder and what runs in them. Claude picks what to read and check itself, and each answer says **✓ Checked** with what it looked at, or **~ Hunch**.
 - **A typo** is the only thing sent without a click. Haiku gets the line, its output, the project's scripts and your recent commands, and suggests a fix.
 
 Keys, tokens and passwords are masked before anything is sent. Your `CLAUDE.md` files and auto-memory load as they do in Claude Code.
