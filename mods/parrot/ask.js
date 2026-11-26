@@ -1,7 +1,9 @@
 // What parrot asks your own Claude, how it reads the answer, and the conversations it keeps, one
 // per project. No Herdr imports, so it is tested with bun test.
 
-export const MODEL = "sonnet";
+import { DEFAULTS } from "./settings.js";
+
+export const MODEL = DEFAULTS.model;
 export const OUTPUT_LINES = 60;
 export const KEEP_MESSAGES = 40;
 export const KEEP_PROJECTS = 12;

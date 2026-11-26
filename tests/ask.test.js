@@ -67,6 +67,12 @@ describe("claudeArgs", () => {
     expect(CHECKS).toContain("git remote -v");
   });
 
+  test("asks on the model you chose, Sonnet when you chose none", () => {
+    const on = (args) => args[args.indexOf("--model") + 1];
+    expect(on(claudeArgs({ prompt: "x" }))).toBe("sonnet");
+    expect(on(claudeArgs({ prompt: "x", model: "opus" }))).toBe("opus");
+  });
+
   test("continues a conversation with --resume", () => {
     const args = claudeArgs({ prompt: "x", session: "abc" });
     expect(args[args.indexOf("--resume") + 1]).toBe("abc");
