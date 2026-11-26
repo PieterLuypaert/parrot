@@ -1,6 +1,6 @@
 # Parrot: plan
 
-Plan version 12, 23 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
+Plan version 13, 26 November 2026. Changes to this plan are in the git history of this folder; the sketch shows the same plan version.
 
 A pixel-art parrot in the Herdr app that watches while you work. When it sees an error, in your terminal or beyond it (your stack's logs, your PR's CI, your local app in the browser), it startles. Click it and your own Claude works out what went wrong and explains it in a speech bubble, with a fix as a command you run with one click. You can also ask it anything yourself, at any time.
 
@@ -170,7 +170,7 @@ Each point below rests on something the Herdr app or herdr-core offers today (`~
 - **Rather press Enter yourself?** A setting puts such a command on your prompt without Enter, so you still see it and start it yourself. zsh's `print -z` can do that, also with `&&` and pipes (tested in the spike); an invisible alternative through the clipboard we test in PR 4.
 - **The browser extension** only follows localhost and only sends to `127.0.0.1`.
 - **Off is off:** no hook events, no watcher and no Claude.
-- **Model:** a fast model by default for the first explanation; follow-up questions on the model you pick, like chartroom's Ask.
+- **Model:** the chat asks on the model you pick under ⚙ in the chat: Haiku, Sonnet or Opus, Sonnet unless you pick another (since plan version 13). The guesses after a typo stay on Haiku, for speed.
 
 ## Questions for the spike
 
@@ -255,7 +255,11 @@ Each piece is a PR of its own that works by itself.
 8. **Checks:** the Checked or Hunch label, with the fixed list of checks Claude may run.
 9. **Links that take you there:** a file at its line in Cursor, a URL in the browser, a terminal's pane.
 10. **Explain or fix** (added in plan version 12, at your request): when a command fails, the parrot asks what to do, with two buttons instead of typing the first question: Explain (why, briefly) or Fix it (only the commands, ready to run).
-11. **Finishing touches:** the squawk (an MP3), silent mode, pirate talk on or off, model choice. The README with screenshots in light and dark came early, with 0.4.1.
+11. **Finishing touches** (split in plan version 13, one PR each, all three in a settings strip that ⚙ opens in the chat; shared state keeps them, and `parrot.forget` clears them):
+   - **Model choice** (0.11.0): Haiku, Sonnet or Opus for the chat, Explain and Fix it included; Sonnet by default;
+   - **Silent mode** (0.12.0): at an error the parrot keeps its mood and shows only a small "!"; nothing opens by itself, and a click opens the chat with the alert;
+   - **Pirate talk** (0.13.0): your Claude and the parrot's own lines talk like a pirate, in the language you chat in; commands, paths, buttons and the Checked or Hunch label stay as they are;
+   - **The squawk** (an MP3) comes with 1.0.0. The README with screenshots in light and dark came early, with 0.4.1.
 
 **Out of scope for now:** the watcher (running programs in other panes, your stack's logs, "What it saw"), your PR's CI and the browser extension.
 
@@ -276,7 +280,10 @@ Parrot follows [semver](https://semver.org). Until everything in the build order
 | 0.8.0 | Checks |
 | 0.9.0 | Links that take you there |
 | 0.10.0 | Explain or fix |
-| 1.0.0 | Finishing touches |
+| 0.11.0 | Model choice |
+| 0.12.0 | Silent mode |
+| 0.13.0 | Pirate talk |
+| 1.0.0 | Finishing touches: the squawk |
 
 - **Fixes in between** are patch versions, such as 0.3.1.
 - **One place for the number:** the version number lives only in `package.json`. The mod shows it in the button's tooltip and `install.sh` prints it.
