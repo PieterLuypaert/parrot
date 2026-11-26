@@ -52,7 +52,7 @@ The first time you turn the parrot on, it says hello. A terminal that has not lo
 - **▶ Run** under a command, or **▶ Run all** under several: run it in the terminal now. A red one waits three seconds, and a click or Esc stops it.
 - A file in an answer, such as `src/orders.ts:42`, opens in Cursor (or VS Code) at that line. A terminal it names takes you to that pane.
 - **Clear chat**, or `/clear`: start the project's conversation over.
-- **⚙** in the chat: settings. **Model** picks the model the chat asks on: Haiku, Sonnet (the default) or Opus. **Silent** keeps the parrot in its mood at an error: it shows a small red **!** instead of startling, and a click shows the error in the chat.
+- **⚙** in the chat: settings. **Model** picks the model the chat asks on: Haiku, Sonnet (the default) or Opus. **Silent** keeps the parrot in its mood at an error: it shows a small red **!** instead of startling, and a click shows the error in the chat. **Pirate talk** has your Claude answer like a pirate, in the language you chat in, and the parrot's own lines too, in English; commands, paths and errors stay exact.
 
 ## What goes to Claude
 

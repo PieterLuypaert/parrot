@@ -258,7 +258,7 @@ Each piece is a PR of its own that works by itself.
 11. **Finishing touches** (split in plan version 13, one PR each, all three in a settings strip that ⚙ opens in the chat; shared state keeps them, and `parrot.forget` clears them):
    - **Model choice** (0.11.0): Haiku, Sonnet or Opus for the chat, Explain and Fix it included; Sonnet by default;
    - **Silent mode** (0.12.0): at an error the parrot keeps its mood and shows only a small "!"; nothing opens by itself, and a click opens the chat with the alert;
-   - **Pirate talk** (0.13.0): your Claude and the parrot's own lines talk like a pirate, in the language you chat in; commands, paths, buttons and the Checked or Hunch label stay as they are;
+   - **Pirate talk** (0.13.0): your Claude talks like a pirate, in the language you chat in, and so do the parrot's own lines, which are in English; commands, paths, buttons and the Checked or Hunch label stay as they are;
    - **The squawk** (an MP3) comes with 1.0.0. The README with screenshots in light and dark came early, with 0.4.1.
 
 **Out of scope for now:** the watcher (running programs in other panes, your stack's logs, "What it saw"), your PR's CI and the browser extension.

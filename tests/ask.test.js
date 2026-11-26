@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  CHECKS, KEEP_MESSAGES, KEEP_PROJECTS, SUGGEST_MODEL, SUGGEST_TIMEOUT, TOOLS, chatLanguage, labelOf, claudeArgs, explainFailure, languageOf, mask, parseAnswer, parseSuggestions,
+  CHECKS, KEEP_MESSAGES, KEEP_PROJECTS, PIRATE, SUGGEST_MODEL, SUGGEST_PIRATE, SUGGEST_SYSTEM, SUGGEST_TIMEOUT, SYSTEM, TOOLS, chatLanguage, labelOf, claudeArgs, explainFailure, languageOf, mask, parseAnswer, parseSuggestions,
   projectName, promptFor, suggestArgs, suggestPrompt, tail, withMessage, withSession, withoutChat,
 } from "../mods/parrot/ask.js";
 
@@ -13,6 +13,15 @@ describe("asking Claude what you meant", () => {
     expect(args[args.indexOf("--setting-sources") + 1]).toBe("");
     expect(JSON.parse(args[args.indexOf("--json-schema") + 1]).properties.suggestions.maxItems).toBe(3);
     expect(args.at(-1)).toBe("<typed>gitce</typed>");
+  });
+
+  test("asks for whys in pirate talk only when it is on, never for other commands", () => {
+    const system = (args) => args[args.indexOf("--system-prompt") + 1];
+    expect(system(suggestArgs("<typed>x</typed>"))).toBe(SUGGEST_SYSTEM);
+    const pirate = suggestArgs("<typed>x</typed>", { pirate: true });
+    expect(system(pirate)).toBe(`${SUGGEST_SYSTEM} ${SUGGEST_PIRATE}`);
+    expect(pirate[pirate.indexOf("--model") + 1]).toBe(SUGGEST_MODEL);
+    expect(pirate.at(-1)).toBe("<typed>x</typed>");
   });
 
   test("gives Claude the line, the masked output, the scripts and your habits, never your aliases", () => {
@@ -71,6 +80,14 @@ describe("claudeArgs", () => {
     const on = (args) => args[args.indexOf("--model") + 1];
     expect(on(claudeArgs({ prompt: "x" }))).toBe("sonnet");
     expect(on(claudeArgs({ prompt: "x", model: "opus" }))).toBe("opus");
+  });
+
+  test("talks like a pirate only when pirate talk is on, keeping the Checked line exact", () => {
+    const system = (args) => args[args.indexOf("--system-prompt") + 1];
+    expect(system(claudeArgs({ prompt: "x" }))).toBe(SYSTEM);
+    expect(system(claudeArgs({ prompt: "x", pirate: true }))).toBe(`${SYSTEM} ${PIRATE}`);
+    expect(PIRATE).toContain("'Checked: '");
+    expect(PIRATE).toContain("exactly");
   });
 
   test("continues a conversation with --resume", () => {

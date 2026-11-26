@@ -33,14 +33,24 @@ export const SYSTEM = [
   "The person's recent terminal output comes with each question; it may have nothing to do with it.",
 ].join(" ");
 
+// Pirate talk, when you turn it on: the same answers, as clear, only spoken like a pirate.
+export const PIRATE = [
+  "Talk like a cheerful pirate, in the language of the question: a pirate's words and flair (arr, matey, the ship, the hold, running aground), never at the cost of clarity.",
+  "Keep commands, code blocks, file paths, error text and the first line, 'Checked: ' or 'Hunch', exactly as they would be.",
+].join(" ");
+
+export function systemPrompt(pirate = false) {
+  return pirate ? `${SYSTEM} ${PIRATE}` : SYSTEM;
+}
+
 // Arguments for `claude -p`, the person's own Claude Code on their own login and subscription, as
 // Chartroom asks it: an answer as JSON, read-only tools and the checks above, no MCP servers, none
 // of their hooks or plugins (--setting-sources ""), and the conversation so far when there is one.
 // Bash is there for the checks only: without anyone to approve it, every other command is refused.
 // The prompt starts with the terminal block, never with a dash, so it is never read as an option.
-export function claudeArgs({ prompt, session, model = MODEL }) {
+export function claudeArgs({ prompt, session, model = MODEL, pirate = false }) {
   const args = [
-    "-p", "--output-format", "json", "--model", model, "--system-prompt", SYSTEM,
+    "-p", "--output-format", "json", "--model", model, "--system-prompt", systemPrompt(pirate),
     "--tools", `${TOOLS},Bash`, "--allowedTools", ALLOWED, "--strict-mcp-config", "--setting-sources", "",
   ];
   if (session) args.push("--resume", session);
@@ -256,11 +266,15 @@ export const SUGGEST_SCHEMA = {
   additionalProperties: false,
 };
 
+export const SUGGEST_PIRATE = "Write each why as a cheerful pirate would say it, still at most six words. The commands stay exact.";
+
 // One quick question on a fast model: no tools, no MCP servers, none of the person's hooks or
-// plugins, no session kept, and the answer in the shape asked for.
-export function suggestArgs(prompt, model = SUGGEST_MODEL) {
+// plugins, no session kept, and the answer in the shape asked for. With pirate talk on, the whys
+// sound like a pirate.
+export function suggestArgs(prompt, { model = SUGGEST_MODEL, pirate = false } = {}) {
+  const system = pirate ? `${SUGGEST_SYSTEM} ${SUGGEST_PIRATE}` : SUGGEST_SYSTEM;
   return [
-    "-p", "--output-format", "json", "--model", model, "--system-prompt", SUGGEST_SYSTEM, "--tools", "",
+    "-p", "--output-format", "json", "--model", model, "--system-prompt", system, "--tools", "",
     "--strict-mcp-config", "--setting-sources", "", "--no-session-persistence", "--json-schema", JSON.stringify(SUGGEST_SCHEMA),
     prompt,
   ];
