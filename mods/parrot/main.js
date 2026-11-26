@@ -34,6 +34,7 @@ import { editorCandidates, filePlaces, fileTarget, linkTarget, linkify, terminal
 import { HOOK_GRACE, hookPath, noteFor } from "./notes.js";
 import { hasPlaceholder, isRisky, runLineOf, scriptsFrom, segments, shellQuote } from "./shell.js";
 import { MODELS, OFF_ON, modelLabel, settingsFrom, withSetting } from "./settings.js";
+import { say } from "./talk.js";
 
 const FRAMES = "mods/parrot/frames/";
 const SIZE = 96;
@@ -102,6 +103,7 @@ const chats = () => shared(CHATS) ?? {};
 const busy = () => shared(BUSY) ?? {};
 const mySettings = () => settingsFrom(shared(SETTINGS));
 const setSetting = (key, value) => setShared(SETTINGS, withSetting(shared(SETTINGS), key, value));
+const talk = (key, value) => say(key, mySettings().pirate, value);
 const stop = (_e, cx) => cx.stop_propagation();
 
 // Where a window `width` wide opens left of the parrot at `at`, its tail at the parrot's head: a
@@ -505,7 +507,7 @@ export default class Parrot extends View {
     } else {
       try {
         const prompt = suggestPrompt({ line: alert.cmd, code: alert.code, cwd: alert.cwd, output, scripts, history, language: chatLanguage(chats()) });
-        result = parseSuggestions(await exec(bin, suggestArgs(prompt), { cwd: alert.cwd, timeout: SUGGEST_TIMEOUT }));
+        result = parseSuggestions(await exec(bin, suggestArgs(prompt, { pirate: mySettings().pirate }), { cwd: alert.cwd, timeout: SUGGEST_TIMEOUT }));
       } catch (error) {
         const why = String(error?.message ?? error);
         result = { error: explainFailure(why, SUGGEST_TIMEOUT) ?? `Claude could not suggest: ${why}` };
@@ -687,15 +689,17 @@ export default class Parrot extends View {
     });
   }
 
-  // Your own Claude, on the model you chose, in the terminal's folder, with the terminal's last
-  // output (masked first, then cut) and the project's conversation so far.
+  // Your own Claude, on the model you chose and in pirate talk when it is on, in the terminal's
+  // folder, with the terminal's last output (masked first, then cut) and the project's
+  // conversation so far.
   async askClaude({ root, cwd, address, branch, question }) {
     const output = address ? await this.readOutput(address) : "";
     const prompt = promptFor({ question, cwd, branch, output, terminals: terminalsBlock(spaceTerminals(address)) });
     const bin = await this.claudeBin();
     if (!bin) return { error: MISSING_CLAUDE };
+    const { model, pirate } = mySettings();
     try {
-      return parseAnswer(await exec(bin, claudeArgs({ prompt, session: chats()[root]?.session, model: mySettings().model }), { cwd, timeout: TIMEOUT }));
+      return parseAnswer(await exec(bin, claudeArgs({ prompt, session: chats()[root]?.session, model, pirate }), { cwd, timeout: TIMEOUT }));
     } catch (error) {
       const why = String(error?.message ?? error);
       return { error: explainFailure(why) ?? `Parrot could not reach Claude: ${why}` };
@@ -933,7 +937,7 @@ export default class Parrot extends View {
     const seconds = typeof since === "number" ? Math.max(0, Math.floor((Date.now() - since) / 1000)) : null;
     return h_flex().gap(8).items_center().text_size(12.5).text_color(t.muted)
       .child(image(FRAMES + "think.png").w(28).h(28).flex_none())
-      .child(div().child(`Your Claude is thinking${seconds === null ? "" : ` · ${seconds} s`}`));
+      .child(div().child(`${talk("thinking")}${seconds === null ? "" : ` · ${seconds} s`}`));
   }
 
   bubbleTitle(t, title, mark, id, close) {
@@ -972,7 +976,7 @@ export default class Parrot extends View {
       .child(this.bubbleTitle(t, headline(alert), "!", `parrot-alert-close-${where}`, () => setShared(ALERT, null)))
       .when(Boolean(alert.asking), (el) => el.child(this.thinking(t, alert.askedAt)))
       .when(Boolean(alert.claudeError), (el) => el.child(div().text_size(12.5).text_color(t.muted).child(alert.claudeError)))
-      .when(guesses.length > 0, (el) => el.child(div().text_size(13).child("Your Claude thinks you meant:")))
+      .when(guesses.length > 0, (el) => el.child(div().text_size(13).child(talk("guessed"))))
       .children(guesses.map((guess, i) => this.codeBlock(t, { lines: [{ text: guess.command, command: guess.command }] }, `parrot-guess-${where}-${i}`, {
         put: (command) => putCommand(alert, command),
         address: () => alert.terminal,
@@ -985,8 +989,8 @@ export default class Parrot extends View {
         key: `guess-${alert.id}-${i}`,
       })))
       .when(guesses.length === 0 && alert.answered && !alert.claudeError,
-        (el) => el.child(div().text_size(12.5).text_color(t.muted).child("Your Claude has no good guess for this one.")))
-      .when(guesses.length === 0 && !alert.asking, (el) => el.child(div().text_size(13).child("Shall I explain it, or fix it?")))
+        (el) => el.child(div().text_size(12.5).text_color(t.muted).child(talk("noGuess"))))
+      .when(guesses.length === 0 && !alert.asking, (el) => el.child(div().text_size(13).child(talk("ask"))))
       .child(h_flex().gap(8)
         .child(this.actionButton(`parrot-alert-fix-${where}`, "Fix it", "Your Claude gives the commands that fix it, in the chat, ready to run", () => askAbout(alert, "fix")))
         .child(this.actionButton(`parrot-alert-explain-${where}`, "Explain", "Your Claude says why it failed, in the chat", () => askAbout(alert, "explain"), false)));
@@ -1130,6 +1134,10 @@ export default class Parrot extends View {
       .child(this.settingRow(t, {
         key: "silent", name: "Silent", tip: "At an error the parrot only shows a small ! instead of startling and opening its bubble. Click it to see the error in the chat",
         options: OFF_ON, chosen: now.silent, pick: (on) => setSetting("silent", on),
+      }))
+      .child(this.settingRow(t, {
+        key: "pirate", name: "Pirate talk", tip: "Your Claude and the parrot talk like a pirate, in the language you chat in. Commands, paths, buttons and errors stay exact",
+        options: OFF_ON, chosen: now.pirate, pick: (on) => setSetting("pirate", on),
       }));
   }
 
@@ -1366,8 +1374,8 @@ export default class Parrot extends View {
     return h_flex().gap(12).items_start().py(6)
       .child(image(FRAMES + "calm.png").w(48).h(48).flex_none())
       .child(v_flex().flex_1().min_w(0).gap(6).text_size(12.5).text_color(t.muted)
-        .child(div().text_size(13).font_bold().text_color(t.foreground).child(root ? `Ask anything about ${projectName(root)}` : "Open a terminal in this tab first"))
-        .child(div().child("How something works, where something lives, why a command failed. Parrot reads the project's files and the terminal's last output, may run a few read-only checks such as git status, and never changes anything."))
+        .child(div().text_size(13).font_bold().text_color(t.foreground).child(root ? talk("emptyTitle", projectName(root)) : "Open a terminal in this tab first"))
+        .child(div().child(talk("emptyBody")))
         .child(div().text_color(t.dim).child(`On your own Claude subscription, with ${modelLabel(mySettings().model)}. ⚙ changes the model.`)));
   }
 
