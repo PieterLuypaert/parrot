@@ -128,9 +128,10 @@ const openAlertNow = () => {
 const loudAlert = () => (mySettings().silent ? null : openAlertNow());
 
 // A note, such as hello or why it cannot hear a terminal, shows where an alert would, while there
-// is no alert. One about a terminal shows only while the parrot watches that terminal.
+// is no alert it shows by itself: a silent alert lets it through. One about a terminal shows only
+// while the parrot watches that terminal.
 const openNoteNow = (terminal) => {
-  if (openAlertNow()) return null;
+  if (loudAlert()) return null;
   const note = shared(NOTE);
   return note && (!note.terminal || note.terminal === terminal?.address) ? note : null;
 };
@@ -583,8 +584,11 @@ export default class Parrot extends View {
   }
 
   // What the parrot says about an error, or a note, opens beside it while the chat is closed; an
-  // open chat shows it itself. In silent mode an alert waits for a click.
+  // open chat shows it itself. In silent mode an alert waits for a click, and one that came while
+  // it was silent stays that way, also when silent mode goes off.
   syncAlert() {
+    const quiet = mySettings().silent ? openAlertNow() : null;
+    if (quiet) this.alertShown = quiet.id;
     const said = loudAlert() ?? openNoteNow(this.terminal());
     const win = shared(ALERT_WINDOW);
     const chatOpen = Boolean(shared(CHAT));
@@ -785,14 +789,16 @@ export default class Parrot extends View {
     });
   }
 
-  // Startled, it shakes once for each new alert, unless it is silent; dancing, it steps by a short
-  // timer that stops by itself. The other moods move natively.
+  // Startled, it shakes once for each new alert, unless it is silent then; dancing, it steps by a
+  // short timer that stops by itself. The other moods move natively.
   animate(cx) {
-    const alert = loudAlert();
+    const alert = openAlertNow();
     if (alert && alert.id !== this.alertSeen) {
       this.alertSeen = alert.id;
-      this.shaking = true;
-      cx.timer.after(SHAKE_FOR, (cx) => { this.shaking = false; cx.notify(); });
+      if (!mySettings().silent) {
+        this.shaking = true;
+        cx.timer.after(SHAKE_FOR, (cx) => { this.shaking = false; cx.notify(); });
+      }
     }
     if (!alert) this.alertSeen = null;
     if (this.shown !== "dance" || this.beatTask) return;
